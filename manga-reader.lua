@@ -6,6 +6,8 @@ local opts = {
 	manga = true
 }
 local filearray = {}
+local filedims = {}
+local names
 local length
 local index = 0
 local root
@@ -26,21 +28,52 @@ function check_image()
 	end
 end
 opts.image = check_image()
+function str_split(str, delim)
+	local split = {}
+	local i = 0
+	for token in string.gmatch(str, "([^"..delim.."]+)") do
+		split[i] = token
+		i = i + 1
+	end
+	return split
+end
 function get_dims(page)
-	local page = ("\""..page.."\"")
-	local tmp = io.tmpfile()
-	os.execute("identify -format '%w' "..page..">"..tmp)
-	f = io.open(tmp, "r")
-	io.input(f)
-	width = io.read("*all")
-	io.close(f)
-
-	os.execute("identify -format '%h' "..page..">"..tmp)
-	f = io.open(tmp, "r")
-	io.input(f)
-	height = io.read("*all")
-	io.close(f)
-	return width,height
+	local dims = {}
+	local p
+	local str
+	if opts.archive then
+		local archive = string.gsub(root, ".*/", "")
+		p = io.popen("unzip -p "..archive.." "..page.." | identify -")
+		io.input(p)
+		str = io.read()
+		if str == nil then
+			dims = nil
+		else
+			local sub = string.find(str, "[0-9]+x[0-9]+")
+			dims = str_split(sub, "x")
+		end
+	else
+		local path = "\""..root.."/"..page.."\""
+		p = io.popen("identify -format '%w,%h' "..path)
+		io.input(p)
+		str = io.read()
+		io.close()
+		if str == nil then
+			dims = nil
+		else
+			dims = str_split(str, ",")
+		end
+	end
+	return dims
+end
+function file_exists(name)
+	local f = io.open(name, "r")
+	if f == nil then
+		return false
+	else
+		io.close(f)
+		return true
+	end
 end
 function generate_name(cur_page, next_page)
 	local cur_base = string.gsub(cur_page, "%..*", "")
@@ -52,6 +85,15 @@ function double_page()
 	local cur_page = filearray[index]
 	local next_page = filearray[index + 1]
 	local name = generate_name(cur_page, next_page)
+	if file_exists(name) then
+		mp.commandv("loadfile", name, "replace")
+		return
+	end
+	if names == nil then
+		names = name
+	else
+		names = names.." "..name
+	end
 	if opts.archive then
 		local archive = string.gsub(root, ".*/", "")
 		os.execute("unzip "..archive.." "..cur_page.." "..next_page)
@@ -67,11 +109,7 @@ function double_page()
 	if opts.archive then
 		os.execute("rm "..cur_page.." "..next_page)
 	end
-	--local fwidth,fheight = get_dims(cur_page)
-	--local swidth,sheight = get_dims(next_page)
 	mp.commandv("loadfile", name, "replace")
-	local total = mp.get_property("playlist-count")
-	os.execute("rm "..name)
 end
 function single_page()
 	local page = filearray[index]
@@ -185,6 +223,7 @@ function close_manga_reader()
 	mp.remove_key_binding("prev-single-page")
 	mp.remove_key_binding("first-page")
 	mp.remove_key_binding("last-page")
+	os.execute("rm "..names)
 end
 function set_keys()
 	if opts.manga then
@@ -208,8 +247,12 @@ function start_manga_reader()
 	local filelist = get_filelist(root)
 	local i = 0
 	for filename in filelist:lines() do
-		filearray[i] = filename
-		i = i + 1
+		local dims = get_dims(filename)
+		if dims ~= nil then
+			filearray[i] = filename
+			filedims[i] = dims
+			i = i + 1
+		end
 	end
 	length = i
 	filelist:close()
@@ -217,7 +260,7 @@ function start_manga_reader()
 	mp.set_property_bool("osc", false)
 	index = 0
 	if opts.double then
-		double_page(root)
+		double_page()
 	end
 end
 function startup_msg()
