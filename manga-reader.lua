@@ -29,7 +29,6 @@ function check_image()
 		return false
 	end
 end
-opts.image = check_image()
 function str_split(str, delim)
 	local split = {}
 	local i = 0
@@ -314,18 +313,17 @@ function startup_msg()
 	end
 end
 function toggle_reader()
-	if not opts.image then
-		startup_msg()
+	if opts.init then
+		opts.init = false
+		mp.osd_message("Closing Reader")
+		close_manga_reader()
 	else
-		if opts.init then
-			opts.init = false
-			mp.osd_message("Closing Reader")
-			close_manga_reader()
-		else
+		opts.image = check_image()
+		if opts.image then
 			opts.init = true
-			startup_msg()
 			start_manga_reader()
 		end
+		startup_msg()
 	end
 end
 mp.add_key_binding("y", "toggle-manga-reader", toggle_reader)
