@@ -1,3 +1,4 @@
+local utils = require "mp.utils"
 local opts = {
 	archive = false,
 	double = true,
@@ -54,7 +55,7 @@ function get_dims(page)
 			dims = str_split(sub, "x")
 		end
 	else
-		local path = "\""..root.."/"..page.."\""
+		local path = utils.join_path(root, page)
 		p = io.popen("identify -format '%w,%h' "..path)
 		io.input(p)
 		str = io.read()
@@ -101,8 +102,8 @@ function double_page()
 		local archive = string.gsub(root, ".*/", "")
 		os.execute("unzip "..archive.." "..cur_page.." "..next_page)
 	else
-		cur_page = "\""..root.."/"..cur_page.."\""
-		next_page = "\""..root.."/"..next_page.."\""
+		cur_page = utils.join_path(root, cur_page)
+		next_page = utils.join_path(root, next_page)
 	end
 	if opts.manga then
 		os.execute("convert "..next_page.." "..cur_page.." +append "..name)
@@ -121,7 +122,9 @@ function single_page()
 		local noescapepage = string.gsub(page, "\\", "")
 		mp.commandv("loadfile", noescaperoot.."|"..noescapepage, "replace")
 	else
-		mp.commandv("loadfile", root.."/"..page, "replace")
+		local path = utils.join_path(root, page)
+		path = string.gsub(path, "\\", "")
+		mp.commandv("loadfile", path, "replace")
 	end
 end
 function refresh_page()
@@ -137,8 +140,7 @@ function get_filelist(path)
 		local archive = string.gsub(path, ".*/", "")
 		filelist = io.popen("zipinfo -1 "..archive)
 	else
-		local path_quotes = ("\""..path.."\"")
-		filelist = io.popen("ls "..path_quotes)
+		filelist = io.popen("ls "..path)
 	end
 	return filelist
 end
@@ -149,6 +151,7 @@ function get_root(path)
 		root = string.gsub(root, " ", "\\ ")
 	else
 		root = string.gsub(path, "/.*", "")
+		root = string.gsub(root, " ", "\\ ")
 	end
 	return root
 end
@@ -282,8 +285,10 @@ function start_manga_reader()
 		dir = string.gsub(dir, "/.*", "")
 		dir = string.gsub(dir, " ", "\\ ")
 		init_arg = string.gsub(root, ".*/", "") 
+		init_arg = string.gsub(init_arg, "\\", "")
 	else
 		init_arg = root
+		init_arg = string.gsub(init_arg, "\\", "")
 	end
 	local filelist = get_filelist(root)
 	local i = 0
