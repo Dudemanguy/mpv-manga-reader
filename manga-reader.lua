@@ -232,6 +232,28 @@ function close_manga_reader()
 		os.execute("rm -r "..dir)
 	end
 end
+function toggle_manga_mode()
+	if opts.manga then
+		mp.osd_message("Manga Mode Off")
+		opts.manga = false
+		set_keys()
+		refresh_page()
+	else
+		mp.osd_message("Manga Mode On")
+		opts.manga = true
+		set_keys()
+		refresh_page()
+	end
+end
+function toggle_double_page()
+	if opts.double then
+		opts.double = false
+		single_page()
+	else
+		opts.double = true
+		double_page()
+	end
+end
 function set_keys()
 	if opts.manga then
 		mp.add_forced_key_binding("LEFT", "next-page", next_page)
@@ -271,57 +293,34 @@ function start_manga_reader()
 	filelist:close()
 	set_keys()
 	mp.set_property_bool("osc", false)
+	mp.add_key_binding("m", "toggle-manga-mode", toggle_manga_mode)
+	mp.add_key_binding("d", "toggle-double-page", toggle_double_page)
 	index = 0
 	if opts.double then
 		double_page()
 	end
 end
 function startup_msg()
+	print(opts.image)
 	if opts.image then
 		mp.osd_message("Manga Reader Started")
 	else
 		mp.osd_message("Not an image")
 	end
 end
-function toggle_manga_mode()
-	if not opts.init then
-		return
-	end
-	if opts.manga then
-		mp.osd_message("Manga Mode Off")
-		opts.manga = false
-		set_keys()
-		refresh_page()
-	else
-		mp.osd_message("Manga Mode On")
-		opts.manga = true
-		set_keys()
-		refresh_page()
-	end
-end
 function toggle_reader()
-	if opts.init then
-		opts.init = false
-		mp.osd_message("Closing Reader")
-		close_manga_reader()
-	else
-		opts.init = true
+	if not opts.image then
 		startup_msg()
-		start_manga_reader()
-	end
-end
-function toggle_double_page()
-	if not opts.init then
-		return
-	end
-	if opts.double then
-		opts.double = false
-		single_page()
 	else
-		opts.double = true
-		double_page()
+		if opts.init then
+			opts.init = false
+			mp.osd_message("Closing Reader")
+			close_manga_reader()
+		else
+			opts.init = true
+			startup_msg()
+			start_manga_reader()
+		end
 	end
 end
-mp.add_key_binding("m", "toggle-manga-mode", toggle_manga_mode)
-mp.add_key_binding("d", "toggle-double-page", toggle_double_page)
 mp.add_key_binding("y", "toggle-manga-reader", toggle_reader)
