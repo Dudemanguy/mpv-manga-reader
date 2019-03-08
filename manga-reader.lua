@@ -7,6 +7,7 @@ local opts = {
 }
 local filearray = {}
 local filedims = {}
+local dir
 local names
 local length
 local index = 0
@@ -76,8 +77,10 @@ function file_exists(name)
 	end
 end
 function generate_name(cur_page, next_page)
-	local cur_base = string.gsub(cur_page, "%..*", "")
-	local next_base = string.gsub(next_page, "%..*", "")
+	local cur_base = string.gsub(cur_page, ".*/", "")
+	cur_base = string.gsub(cur_base, "%..*", "")
+	local next_base = string.gsub(next_page, ".*/", "")
+	next_base = string.gsub(next_base, "%..*", "")
 	local name = cur_base.."-"..next_base..".png"
 	return name
 end
@@ -142,6 +145,7 @@ function get_root(path)
 	local root
 	if opts.archive then
 		root = string.gsub(path, "|.*", "")
+		root = string.gsub(root, " ", "\\ ")
 	else
 		root = string.gsub(path, "/.*", "")
 	end
@@ -224,6 +228,9 @@ function close_manga_reader()
 	mp.remove_key_binding("first-page")
 	mp.remove_key_binding("last-page")
 	os.execute("rm "..names)
+	if opts.archive then
+		os.execute("rm -r "..dir)
+	end
 end
 function set_keys()
 	if opts.manga then
@@ -244,9 +251,15 @@ function start_manga_reader()
 	local path = mp.get_property("path")
 	opts.archive = check_archive(path)
 	root = get_root(path)
+	if opts.archive then
+		dir = string.gsub(path, ".*|", "")
+		dir = string.gsub(dir, "/.*", "")
+		dir = string.gsub(dir, " ", "\\ ")
+	end
 	local filelist = get_filelist(root)
 	local i = 0
 	for filename in filelist:lines() do
+		filename = string.gsub(filename, " ", "\\ ")
 		local dims = get_dims(filename)
 		if dims ~= nil then
 			filearray[i] = filename
