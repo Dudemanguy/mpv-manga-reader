@@ -358,4 +358,5 @@ function toggle_reader()
 	end
 end
 
+mp.register_event("shutdown", close_manga_reader)
 mp.add_key_binding("y", "toggle-manga-reader", toggle_reader)
