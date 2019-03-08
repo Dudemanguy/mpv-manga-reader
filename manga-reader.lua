@@ -14,6 +14,7 @@ local length
 local index = 0
 local root
 local init_arg
+
 function check_archive(path)
 	if string.find(path, "archive://") == nil then
 		return false
@@ -21,6 +22,7 @@ function check_archive(path)
 		return true
 	end
 end
+
 function check_image()
 	audio = mp.get_property("audio-params")
 	frame_count = mp.get_property("estimated-frame-count")
@@ -30,6 +32,49 @@ function check_image()
 		return false
 	end
 end
+
+function file_exists(name)
+	local f = io.open(name, "r")
+	if f == nil then
+		return false
+	else
+		io.close(f)
+		return true
+	end
+end
+
+function generate_name(cur_page, next_page)
+	local cur_base = string.gsub(cur_page, ".*/", "")
+	cur_base = string.gsub(cur_base, "%..*", "")
+	local next_base = string.gsub(next_page, ".*/", "")
+	next_base = string.gsub(next_base, "%..*", "")
+	local name = cur_base.."-"..next_base..".png"
+	return name
+end
+
+function get_filelist(path)
+	local filelist
+	if opts.archive then
+		local archive = string.gsub(path, ".*/", "")
+		filelist = io.popen("zipinfo -1 "..archive)
+	else
+		filelist = io.popen("ls "..path)
+	end
+	return filelist
+end
+
+function get_root(path)
+	local root
+	if opts.archive then
+		root = string.gsub(path, "|.*", "")
+		root = string.gsub(root, " ", "\\ ")
+	else
+		root = string.gsub(path, "/.*", "")
+		root = string.gsub(root, " ", "\\ ")
+	end
+	return root
+end
+
 function str_split(str, delim)
 	local split = {}
 	local i = 0
@@ -39,6 +84,7 @@ function str_split(str, delim)
 	end
 	return split
 end
+
 function get_dims(page)
 	local dims = {}
 	local p
@@ -68,23 +114,7 @@ function get_dims(page)
 	end
 	return dims
 end
-function file_exists(name)
-	local f = io.open(name, "r")
-	if f == nil then
-		return false
-	else
-		io.close(f)
-		return true
-	end
-end
-function generate_name(cur_page, next_page)
-	local cur_base = string.gsub(cur_page, ".*/", "")
-	cur_base = string.gsub(cur_base, "%..*", "")
-	local next_base = string.gsub(next_page, ".*/", "")
-	next_base = string.gsub(next_base, "%..*", "")
-	local name = cur_base.."-"..next_base..".png"
-	return name
-end
+
 function double_page()
 	local cur_page = filearray[index]
 	local next_page = filearray[index + 1]
@@ -115,6 +145,7 @@ function double_page()
 	end
 	mp.commandv("loadfile", name, "replace")
 end
+
 function single_page()
 	local page = filearray[index]
 	if opts.archive then
@@ -127,6 +158,7 @@ function single_page()
 		mp.commandv("loadfile", path, "replace")
 	end
 end
+
 function refresh_page()
 	if opts.double then
 		double_page()
@@ -134,27 +166,7 @@ function refresh_page()
 		single_page()
 	end
 end
-function get_filelist(path)
-	local filelist
-	if opts.archive then
-		local archive = string.gsub(path, ".*/", "")
-		filelist = io.popen("zipinfo -1 "..archive)
-	else
-		filelist = io.popen("ls "..path)
-	end
-	return filelist
-end
-function get_root(path)
-	local root
-	if opts.archive then
-		root = string.gsub(path, "|.*", "")
-		root = string.gsub(root, " ", "\\ ")
-	else
-		root = string.gsub(path, "/.*", "")
-		root = string.gsub(root, " ", "\\ ")
-	end
-	return root
-end
+
 function next_page()
 	if opts.double then
 		index = index + 2
@@ -170,6 +182,7 @@ function next_page()
 		single_page()
 	end
 end
+
 function prev_page()
 	if opts.double then
 		index = index - 2
@@ -185,6 +198,7 @@ function prev_page()
 		single_page()
 	end
 end
+
 function next_single_page()
 	index = index + 1
 	if index > length - 1 then
@@ -196,6 +210,7 @@ function next_single_page()
 		single_page()
 	end
 end
+
 function prev_single_page()
 	index = index - 1
 	if index < 0 then
@@ -207,6 +222,7 @@ function prev_single_page()
 		single_page()
 	end
 end
+
 function first_page()
 	index = 0
 	if opts.double then
@@ -215,6 +231,7 @@ function first_page()
 		single_page()
 	end
 end
+
 function last_page()
 	if opts.double then
 		index = length - 2
@@ -224,43 +241,7 @@ function last_page()
 		single_page()
 	end
 end
-function close_manga_reader()
-	mp.remove_key_binding("next-page")
-	mp.remove_key_binding("prev-page")
-	mp.remove_key_binding("next-single-page")
-	mp.remove_key_binding("prev-single-page")
-	mp.remove_key_binding("first-page")
-	mp.remove_key_binding("last-page")
-	if names ~= nil then
-		os.execute("rm "..names)
-	end
-	if opts.archive then
-		os.execute("rm -r "..dir)
-	end
-	mp.commandv("loadfile", init_arg, "replace")
-end
-function toggle_manga_mode()
-	if opts.manga then
-		mp.osd_message("Manga Mode Off")
-		opts.manga = false
-		set_keys()
-		refresh_page()
-	else
-		mp.osd_message("Manga Mode On")
-		opts.manga = true
-		set_keys()
-		refresh_page()
-	end
-end
-function toggle_double_page()
-	if opts.double then
-		opts.double = false
-		single_page()
-	else
-		opts.double = true
-		double_page()
-	end
-end
+
 function set_keys()
 	if opts.manga then
 		mp.add_forced_key_binding("LEFT", "next-page", next_page)
@@ -276,6 +257,55 @@ function set_keys()
 	mp.add_forced_key_binding("HOME", "first-page", first_page)
 	mp.add_forced_key_binding("END", "last-page", last_page)
 end
+
+function startup_msg()
+	if opts.image then
+		mp.osd_message("Manga Reader Started")
+	else
+		mp.osd_message("Not an image")
+	end
+end
+
+function toggle_double_page()
+	if opts.double then
+		opts.double = false
+		single_page()
+	else
+		opts.double = true
+		double_page()
+	end
+end
+
+function toggle_manga_mode()
+	if opts.manga then
+		mp.osd_message("Manga Mode Off")
+		opts.manga = false
+		set_keys()
+		refresh_page()
+	else
+		mp.osd_message("Manga Mode On")
+		opts.manga = true
+		set_keys()
+		refresh_page()
+	end
+end
+
+function close_manga_reader()
+	mp.remove_key_binding("next-page")
+	mp.remove_key_binding("prev-page")
+	mp.remove_key_binding("next-single-page")
+	mp.remove_key_binding("prev-single-page")
+	mp.remove_key_binding("first-page")
+	mp.remove_key_binding("last-page")
+	if names ~= nil then
+		os.execute("rm "..names)
+	end
+	if opts.archive then
+		os.execute("rm -r "..dir)
+	end
+	mp.commandv("loadfile", init_arg, "replace")
+end
+
 function start_manga_reader()
 	local path = mp.get_property("path")
 	opts.archive = check_archive(path)
@@ -312,13 +342,7 @@ function start_manga_reader()
 		double_page()
 	end
 end
-function startup_msg()
-	if opts.image then
-		mp.osd_message("Manga Reader Started")
-	else
-		mp.osd_message("Not an image")
-	end
-end
+
 function toggle_reader()
 	if opts.init then
 		opts.init = false
@@ -333,4 +357,5 @@ function toggle_reader()
 		startup_msg()
 	end
 end
+
 mp.add_key_binding("y", "toggle-manga-reader", toggle_reader)
