@@ -12,6 +12,7 @@ local names
 local length
 local index = 0
 local root
+local init_arg
 function check_archive(path)
 	if string.find(path, "archive://") == nil then
 		return false
@@ -232,6 +233,7 @@ function close_manga_reader()
 	if opts.archive then
 		os.execute("rm -r "..dir)
 	end
+	mp.commandv("loadfile", init_arg, "replace")
 end
 function toggle_manga_mode()
 	if opts.manga then
@@ -278,6 +280,9 @@ function start_manga_reader()
 		dir = string.gsub(path, ".*|", "")
 		dir = string.gsub(dir, "/.*", "")
 		dir = string.gsub(dir, " ", "\\ ")
+		init_arg = string.gsub(root, ".*/", "") 
+	else
+		init_arg = root
 	end
 	local filelist = get_filelist(root)
 	local i = 0
@@ -302,7 +307,6 @@ function start_manga_reader()
 	end
 end
 function startup_msg()
-	print(opts.image)
 	if opts.image then
 		mp.osd_message("Manga Reader Started")
 	else
