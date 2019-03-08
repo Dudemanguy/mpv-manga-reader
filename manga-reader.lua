@@ -4,7 +4,11 @@ local opts = {
 	double = true,
 	image = false,
 	init = false,
-	manga = true
+	manga = true,
+	p7zip = false,
+	rar = false,
+	tar = false,
+	zip = false
 }
 local filearray = {}
 local filedims = {}
@@ -23,6 +27,70 @@ function check_archive(path)
 	end
 end
 
+function check_if_p7zip()
+	local archive = string.gsub(root, ".*/", "")
+	local p7zip = io.popen("7z t "..archive)
+	io.input(p7zip)
+	local str = io.read()
+	io.close()
+	if string.find(str, "ERROR") == nil then
+		opts.p7zip = true
+		return true
+	end
+	return false
+end
+
+function check_if_rar()
+	local archive = string.gsub(root, ".*/", "")
+	local rar = io.popen("unrar t "..archive.." | grep 'not RAR archive'")
+	io.input(rar)
+	local str = io.read()
+	io.close()
+	if string.find(str, "not RAR archive") == nil then
+		opts.rar = true
+		return true
+	end
+	return false
+end
+
+function check_if_tar()
+	if string.find(root, "%.tar") then
+		opts.tar = true
+		return true
+	end
+	return false
+end
+
+function check_if_zip()
+	local archive = string.gsub(root, ".*/", "")
+	local zip = io.popen("zip --test "..archive)
+	io.input(zip)
+	local str = io.read()
+	io.close()
+	if string.find(str, "probably not a zip file") == nil then
+		opts.zip = true
+		return true
+	end
+	return false
+end
+
+function check_archive_type()
+	local type_found = check_if_zip()
+	if not type_found then
+		type_found = check_if_tar()
+	end
+	if not type_found then
+		type_found = check_if_rar()
+	end
+	if not type_found then
+		type_found = check_if_p7zip()
+	end
+	if not type_found then
+		return false
+	else
+		return true
+	end
+end
 function check_image()
 	audio = mp.get_property("audio-params")
 	frame_count = mp.get_property("estimated-frame-count")
@@ -56,7 +124,15 @@ function get_filelist(path)
 	local filelist
 	if opts.archive then
 		local archive = string.gsub(path, ".*/", "")
-		filelist = io.popen("zipinfo -1 "..archive)
+		if opts.p7zip then
+			filelist = io.popen("7z l -slt "..archive.. " | grep 'Path =' | grep -v "..archive.." | sed 's/Path = //g'")
+		elseif opts.rar then
+			filelist = io.popen("unrar l "..archive)
+		elseif opts.tar then
+			filelist = io.popen("tar -tf "..archive)
+		elseif opts.zip then
+			filelist = io.popen("zipinfo -1 "..archive)
+		end
 	else
 		filelist = io.popen("ls "..path)
 	end
@@ -91,7 +167,15 @@ function get_dims(page)
 	local str
 	if opts.archive then
 		local archive = string.gsub(root, ".*/", "")
-		p = io.popen("unzip -p "..archive.." "..page.." | identify -")
+		if opts.p7zip then
+			p = io.popen("7z e -so "..archive.." "..page.." | identify -")
+		elseif opts.rar then
+			p = io.popen("unrar p "..archive.." "..page.." | identify -")
+		elseif opts.tar then
+			p = io.popen("tar -xOf "..archive.." "..page.." | identify -")
+		elseif opts.zip then
+			p = io.popen("unzip -p "..archive.." "..page.." | identify -")
+		end
 		io.input(p)
 		str = io.read()
 		if str == nil then
@@ -130,7 +214,15 @@ function double_page()
 	end
 	if opts.archive then
 		local archive = string.gsub(root, ".*/", "")
-		os.execute("unzip "..archive.." "..cur_page.." "..next_page)
+		if opts.p7zip then
+			os.execute("7z e "..archive.." "..cur_page.." "..next_page)
+		elseif opts.rar then
+			os.execute("unrar e "..archive.." "..cur_page.." "..next_page)
+		elseif opts.tar then
+			p = io.popen("tar -xf "..archive.." "..cur_page.." "..next_page)
+		elseif opts.zip then
+			os.execute("unzip "..archive.." "..cur_page.." "..next_page)
+		end
 	else
 		cur_page = utils.join_path(root, cur_page)
 		next_page = utils.join_path(root, next_page)
@@ -311,6 +403,12 @@ function start_manga_reader()
 	opts.archive = check_archive(path)
 	root = get_root(path)
 	if opts.archive then
+		local type_found = check_archive_type()
+		if not type_found then
+			mp.osd_message("Archive type not supported")
+			close_manga_reader()
+			return
+		end
 		dir = string.gsub(path, ".*|", "")
 		dir = string.gsub(dir, "/.*", "")
 		dir = string.gsub(dir, " ", "\\ ")
