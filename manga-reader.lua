@@ -117,8 +117,9 @@ end
 function single_page()
 	local page = filearray[index]
 	if opts.archive then
-		local archive = string.gsub(root, ".*/", "")
-		mp.commandv("loadfile", archive.."/"..page, "replace")
+		local noescaperoot = string.gsub(root, "\\", "")
+		local noescapepage = string.gsub(page, "\\", "")
+		mp.commandv("loadfile", noescaperoot.."|"..noescapepage, "replace")
 	else
 		mp.commandv("loadfile", root.."/"..page, "replace")
 	end
