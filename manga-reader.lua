@@ -228,7 +228,9 @@ function close_manga_reader()
 	mp.remove_key_binding("prev-single-page")
 	mp.remove_key_binding("first-page")
 	mp.remove_key_binding("last-page")
-	os.execute("rm "..names)
+	if names ~= nil then
+		os.execute("rm "..names)
+	end
 	if opts.archive then
 		os.execute("rm -r "..dir)
 	end
