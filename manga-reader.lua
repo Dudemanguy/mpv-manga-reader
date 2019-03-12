@@ -383,19 +383,21 @@ function toggle_manga_mode()
 end
 
 function close_manga_reader()
-	mp.remove_key_binding("next-page")
-	mp.remove_key_binding("prev-page")
-	mp.remove_key_binding("next-single-page")
-	mp.remove_key_binding("prev-single-page")
-	mp.remove_key_binding("first-page")
-	mp.remove_key_binding("last-page")
-	if names ~= nil then
-		os.execute("rm "..names)
+	if opts.init then
+		mp.remove_key_binding("next-page")
+		mp.remove_key_binding("prev-page")
+		mp.remove_key_binding("next-single-page")
+		mp.remove_key_binding("prev-single-page")
+		mp.remove_key_binding("first-page")
+		mp.remove_key_binding("last-page")
+		if names ~= nil then
+			os.execute("rm "..names)
+		end
+		if opts.archive then
+			os.execute("rm -r "..dir)
+		end
+		mp.commandv("loadfile", init_arg, "replace")
 	end
-	if opts.archive then
-		os.execute("rm -r "..dir)
-	end
-	mp.commandv("loadfile", init_arg, "replace")
 end
 
 function start_manga_reader()
