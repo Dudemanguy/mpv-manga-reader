@@ -13,7 +13,7 @@ local opts = {
 local filearray = {}
 local filedims = {}
 local dir
-local names
+local names = nil
 local length
 local index = 0
 local root
@@ -445,9 +445,9 @@ end
 
 function toggle_reader()
 	if opts.init then
+		close_manga_reader()
 		opts.init = false
 		mp.osd_message("Closing Reader")
-		close_manga_reader()
 	else
 		opts.image = check_image()
 		if opts.image then
