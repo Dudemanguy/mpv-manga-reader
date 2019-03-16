@@ -1,7 +1,7 @@
 local utils = require "mp.utils"
 local opts = {
 	archive = false,
-	double = true,
+	double = false,
 	image = false,
 	init = false,
 	manga = true,
