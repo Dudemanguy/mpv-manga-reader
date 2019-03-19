@@ -10,6 +10,7 @@ local opts = {
 	tar = false,
 	zip = false
 }
+local aspect_ratio = 16/9
 local filearray = {}
 local filedims = {}
 local dir
@@ -192,7 +193,8 @@ function get_dims(page)
 		if str == nil then
 			dims = nil
 		else
-			local sub = string.find(str, "[0-9]+x[0-9]+")
+			local i, j = string.find(str, "[0-9]+x[0-9]+")
+			local sub = string.sub(str, i, j)
 			dims = str_split(sub, "x")
 		end
 	else
