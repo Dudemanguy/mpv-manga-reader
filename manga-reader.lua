@@ -265,47 +265,9 @@ function single_page()
 end
 
 function refresh_page()
-	if opts.double then
-		double_page()
-	else
-		single_page()
+	if index < 0 then
+		index = 0
 	end
-end
-
-function next_page()
-	if opts.double then
-		index = index + 2
-		if index > length - 1 then
-			index = length - 2
-		end
-		double_page()
-	else
-		index = index + 1
-		if index > length - 1 then
-			index = length - 1
-		end
-		single_page()
-	end
-end
-
-function prev_page()
-	if opts.double then
-		index = index - 2
-		if index < 0 then
-			index = 0
-		end
-		double_page()
-	else
-		index = index - 1
-		if index < 0 then
-			index = 0
-		end
-		single_page()
-	end
-end
-
-function next_single_page()
-	index = index + 1
 	if opts.double then
 		if index > length - 2 then
 			index = length - 2
@@ -319,35 +281,46 @@ function next_single_page()
 	end
 end
 
+function next_page()
+	if opts.double then
+		index = index + 2
+	else
+		index = index + 1
+	end
+	refresh_page()
+end
+
+function prev_page()
+	if opts.double then
+		index = index - 2
+	else
+		index = index - 1
+	end
+	refresh_page()
+end
+
+function next_single_page()
+	index = index + 1
+	refresh_page()
+end
+
 function prev_single_page()
 	index = index - 1
-	if index < 0 then
-		index = 0
-	end
-	if opts.double then
-		double_page()
-	else
-		single_page()
-	end
+	refresh_page()
 end
 
 function first_page()
 	index = 0
-	if opts.double then
-		double_page()
-	else
-		single_page()
-	end
+	refresh_page()
 end
 
 function last_page()
 	if opts.double then
 		index = length - 2
-		double_page()
 	else
 		index = length - 1
-		single_page()
 	end
+	refresh_page()
 end
 
 function set_keys()
@@ -377,14 +350,10 @@ end
 function toggle_double_page()
 	if opts.double then
 		opts.double = false
-		single_page()
 	else
 		opts.double = true
-		if index > length - 2 then
-			index = length - 2
-		end
-		double_page()
 	end
+	refresh_page()
 end
 
 function toggle_manga_mode()
