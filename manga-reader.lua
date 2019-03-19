@@ -273,7 +273,7 @@ function next_page()
 	if opts.double then
 		index = index + 2
 		if index > length - 1 then
-			index = length - 1
+			index = length - 2
 		end
 		double_page()
 	else
@@ -303,12 +303,15 @@ end
 
 function next_single_page()
 	index = index + 1
-	if index > length - 1 then
-		index = length - 1
-	end
 	if opts.double then
+		if index > length - 2 then
+			index = length - 2
+		end
 		double_page()
 	else
+		if index > length - 1 then
+			index = length - 1
+		end
 		single_page()
 	end
 end
@@ -374,6 +377,9 @@ function toggle_double_page()
 		single_page()
 	else
 		opts.double = true
+		if index > length - 2 then
+			index = length - 2
+		end
 		double_page()
 	end
 end
