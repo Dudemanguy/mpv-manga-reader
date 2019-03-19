@@ -11,20 +11,36 @@ local opts = {
 	zip = false
 }
 local aspect_ratio = 16/9
+local dir
 local filearray = {}
 local filedims = {}
-local dir
-local names = nil
-local length
 local index = 0
-local root
 local init_arg
+local length
+local names = nil
+local root
+local valid_width
 
 function check_archive(path)
 	if string.find(path, "archive://") == nil then
 		return false
 	else
 		return true
+	end
+end
+
+function check_aspect_ratio(a, b)
+	local m = a[0]+b[0]
+	local n
+	if a[1] > b[1] then
+		n = a[1]
+	else
+		n = b[1]
+	end
+	if m/n <= aspect_ratio then
+		return true
+	else
+		return false
 	end
 end
 
@@ -141,7 +157,7 @@ function get_filelist(path)
 		elseif opts.rar then
 			filelist = io.popen("unrar l "..archive)
 		elseif opts.tar then
-			filelist = io.popen("tar -tf "..archive)
+			filelist = io.popen("tar -tf "..archive.. " | sort")
 		elseif opts.zip then
 			filelist = io.popen("zipinfo -1 "..archive)
 		end
@@ -264,15 +280,26 @@ function single_page()
 	end
 end
 
-function refresh_page()
+function change_page(amount)
+	index = index + amount
 	if index < 0 then
 		index = 0
+		change_page(0)
+		return
 	end
 	if opts.double then
 		if index > length - 2 then
 			index = length - 2
 		end
-		double_page()
+		valid_width = check_aspect_ratio(filedims[index], filedims[index+1])
+		if not valid_width then
+			if amount < -1 then
+				index = index + 1
+			end
+			single_page()
+		else
+			double_page()
+		end
 	else
 		if index > length - 1 then
 			index = length - 1
@@ -282,36 +309,32 @@ function refresh_page()
 end
 
 function next_page()
-	if opts.double then
-		index = index + 2
+	if opts.double and valid_width then
+		change_page(2)
 	else
-		index = index + 1
+		change_page(1)
 	end
-	refresh_page()
 end
 
 function prev_page()
 	if opts.double then
-		index = index - 2
+		change_page(-2)
 	else
-		index = index - 1
+		change_page(-1)
 	end
-	refresh_page()
 end
 
 function next_single_page()
-	index = index + 1
-	refresh_page()
+	change_page(1)
 end
 
 function prev_single_page()
-	index = index - 1
-	refresh_page()
+	change_page(-1)
 end
 
 function first_page()
 	index = 0
-	refresh_page()
+	change_page(0)
 end
 
 function last_page()
@@ -320,7 +343,7 @@ function last_page()
 	else
 		index = length - 1
 	end
-	refresh_page()
+	change_page(0)
 end
 
 function set_keys()
@@ -349,11 +372,13 @@ end
 
 function toggle_double_page()
 	if opts.double then
+		mp.osd_message("Double Page Mode Off")
 		opts.double = false
 	else
+		mp.osd_message("Double Page Mode On")
 		opts.double = true
 	end
-	refresh_page()
+	change_page(0)
 end
 
 function toggle_manga_mode()
@@ -361,12 +386,12 @@ function toggle_manga_mode()
 		mp.osd_message("Manga Mode Off")
 		opts.manga = false
 		set_keys()
-		refresh_page()
+		change_page(0)
 	else
 		mp.osd_message("Manga Mode On")
 		opts.manga = true
 		set_keys()
-		refresh_page()
+		change_page(0)
 	end
 end
 
@@ -428,7 +453,7 @@ function start_manga_reader()
 	mp.add_key_binding("m", "toggle-manga-mode", toggle_manga_mode)
 	mp.add_key_binding("d", "toggle-double-page", toggle_double_page)
 	index = 0
-	refresh_page()
+	change_page(0)
 end
 
 function toggle_reader()
