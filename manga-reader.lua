@@ -394,7 +394,9 @@ function close_manga_reader()
 			os.execute("rm "..names)
 		end
 		if opts.archive then
-			os.execute("rm -r "..dir)
+			if utils.file_info(dir) then
+				os.execute("rm -r "..dir)
+			end
 		end
 		mp.commandv("loadfile", init_arg, "replace")
 	end
