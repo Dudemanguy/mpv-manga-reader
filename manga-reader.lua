@@ -75,21 +75,31 @@ function check_if_zip()
 end
 
 function check_archive_type()
-	local type_found = check_if_zip()
-	if not type_found then
+	local type_found
+	if string.find(root, ".zip") then
+		type_found = check_if_zip()
+	elseif string.find(root, ".tar") then
 		type_found = check_if_tar()
-	end
-	if not type_found then
+	elseif string.find(root, ".rar") then
 		type_found = check_if_rar()
-	end
-	if not type_found then
+	elseif string.find(root, ".7z") then
 		type_found = check_if_p7zip()
-	end
-	if not type_found then
-		return false
 	else
-		return true
+		check_archive_type_brute()
 	end
+	return type_found
+end
+
+function check_archive_type_brute()
+	local type_found
+	while not type_found do
+		type_found = check_if_zip()
+		type_found = check_if_tar()
+		type_found = check_if_rar()
+		type_found = check_if_p7zip()
+		break
+	end
+	return type_found
 end
 function check_image()
 	audio = mp.get_property("audio-params")
