@@ -457,9 +457,7 @@ function start_manga_reader()
 	mp.add_key_binding("m", "toggle-manga-mode", toggle_manga_mode)
 	mp.add_key_binding("d", "toggle-double-page", toggle_double_page)
 	index = 0
-	if opts.double then
-		double_page()
-	end
+	refresh_page()
 end
 
 function toggle_reader()
