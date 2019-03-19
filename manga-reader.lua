@@ -74,6 +74,18 @@ function check_if_zip()
 	return false
 end
 
+function check_archive_type_brute()
+	local type_found
+	while not type_found do
+		type_found = check_if_zip()
+		type_found = check_if_tar()
+		type_found = check_if_rar()
+		type_found = check_if_p7zip()
+		break
+	end
+	return type_found
+end
+
 function check_archive_type()
 	local type_found
 	if string.find(root, ".zip") then
@@ -90,17 +102,6 @@ function check_archive_type()
 	return type_found
 end
 
-function check_archive_type_brute()
-	local type_found
-	while not type_found do
-		type_found = check_if_zip()
-		type_found = check_if_tar()
-		type_found = check_if_rar()
-		type_found = check_if_p7zip()
-		break
-	end
-	return type_found
-end
 function check_image()
 	audio = mp.get_property("audio-params")
 	frame_count = mp.get_property("estimated-frame-count")
