@@ -12,6 +12,7 @@ local opts = {
 local aspect_ratio
 local root
 local length
+local names = nil
 local index
 
 function check_aspect_ratio(a, b)
@@ -39,6 +40,16 @@ function file_exists(name)
 	end
 end
 
+function str_split(str, delim)
+	local split = {}
+	local i = 0
+	for token in string.gmatch(str, "([^"..delim.."]+)") do
+		split[i] = token
+		i = i + 1
+	end
+	return split
+end
+
 function generate_name(cur_page, next_page)
 	local cur_base = string.gsub(cur_page, ".*/", "")
 	cur_base = string.gsub(cur_base, "%..*", "")
@@ -50,9 +61,17 @@ end
 
 function get_index()
 	local filename = mp.get_property("filename")
+	if string.match(filename, "-") then
+		split = str_split(filename, "-")
+		filename = split[0]
+	end
 	local index
 	for i=0,length do
 		if string.match(filearray[i], filename) then
+			index = i
+			break
+		end
+		if string.match(filename, filearray[i]) then
 			index = i
 			break
 		end
@@ -73,29 +92,34 @@ function create_stitches()
 	for i=start,last do
 		local width_check = check_aspect_ratio(filedims[i], filedims[i+1])
 		local name = generate_name(filearray[i], filearray[i+1])
+		if names == nil then
+			names = name
+		else
+			names = names.." "..name
+		end
 		if not file_exists(name) and width_check then
 			if opts.archive then
 				local archive = string.gsub(root, ".*/", "")
 				if opts.p7zip then
-					os.execute("7z e "..archive.." "..filearray[i].." "..filearray[i+1])
+					os.execute("7z e "..archive.." "..filearray[i].." "..filearray[i+1].." &>/dev/null")
 				elseif opts.rar then
-					os.execute("unrar e "..archive.." "..filearray[i].." "..filearray[i+1])
+					os.execute("unrar e "..archive.." "..filearray[i].." "..filearray[i+1].." &>/dev/null")
 				elseif opts.tar then
-					os.execute("tar -xf "..archive.." "..filearray[i].." "..filearray[i+1])
+					os.execute("tar -xf "..archive.." "..filearray[i].." "..filearray[i+1].." &>/dev/null")
 				elseif opts.zip then
-					os.execute("unzip "..archive.." "..filearray[i].." "..filearray[i+1])
+					os.execute("unzip "..archive.." "..filearray[i].." "..filearray[i+1].." &>/dev/null")
 				end
 			else
 				cur_page = utils.join_path(root, filearray[i])
 				next_page = utils.join_path(root, filearray[i+1])
 			end
 			if opts.manga then
-				os.execute("convert "..filearray[i+1].." "..filearray[i].." +append "..name)
+				os.execute("convert "..filearray[i+1].." "..filearray[i].." +append "..name.." &>/dev/null")
 			else
-				os.execute("convert "..filearray[i].." "..filearray[i+1].." +append "..name)
+				os.execute("convert "..filearray[i].." "..filearray[i+1].." +append "..name.." &>/dev/null")
 			end
 			if opts.archive then
-				os.execute("rm "..filearray[i].." "..filearray[i+1])
+				os.execute("rm "..filearray[i].." "..filearray[i+1].." &>/dev/null")
 			end
 		end
 	end
@@ -151,7 +175,6 @@ function get_dims(page)
 end
 
 function get_filelist(path)
-	local filelist
 	if opts.archive then
 		local archive = string.gsub(path, ".*/", "")
 		if opts.p7zip then
@@ -167,6 +190,12 @@ function get_filelist(path)
 		filelist = io.popen("ls "..path)
 	end
 	return filelist
+end
+
+function remove_tmp_files()
+	if names ~= nil then
+		os.execute("rm "..names.." &>/dev/null")
+	end
 end
 
 mp.register_script_message("start-worker", function(archive, manga, p7zip, rar, tar, zip, ratio, base)
@@ -204,4 +233,5 @@ mp.register_script_message("start-worker", function(archive, manga, p7zip, rar, 
 	filelist:close()
 	length = i
 	mp.register_event("file-loaded", create_stitches)
+	mp.register_event("shutdown", remove_tmp_files)
 end)

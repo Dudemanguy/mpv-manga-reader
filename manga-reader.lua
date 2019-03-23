@@ -410,11 +410,11 @@ end
 function remove_tmp_files()
 	close_manga_reader()
 	if names ~= nil then
-		os.execute("rm "..names)
+		os.execute("rm "..names.." &>/dev/null")
 	end
 	if opts.archive then
 		if utils.file_info(dir) then
-			os.execute("rm -r "..dir)
+			os.execute("rm -r "..dir.." &>/dev/null")
 		end
 	end
 end
@@ -453,6 +453,9 @@ function start_manga_reader()
 	length = i
 	filelist:close()
 	set_keys()
+	mp.commandv("script-message-to", "manga_worker", "start-worker", tostring(opts.archive),
+                tostring(opts.manga), tostring(opts.p7zip), tostring(opts.rar), tostring(opts.tar),
+                tostring(opts.zip), tostring(aspect_ratio), root)
 	mp.set_property_bool("osc", false)
 	mp.add_key_binding("m", "toggle-manga-mode", toggle_manga_mode)
 	mp.add_key_binding("d", "toggle-double-page", toggle_double_page)
