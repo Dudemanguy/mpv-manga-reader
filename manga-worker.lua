@@ -90,15 +90,15 @@ end
 
 function create_stitches()
 	local start = get_index()
-	if not (filearray[start] and filearray[start+1]) then
-		return
-	end
-	if start+10 > length then
+	if start + 10 > length then
 		last = length - 2
 	else
 		last = start+10
 	end
 	for i=start,last do
+		if not (filearray[start] and filearray[last]) then
+			return
+		end
 		local width_check = check_aspect_ratio(filedims[i], filedims[i+1])
 		local name = generate_name(filearray[i], filearray[i+1])
 		if names == nil then
