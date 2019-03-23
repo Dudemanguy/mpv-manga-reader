@@ -403,15 +403,19 @@ function close_manga_reader()
 		mp.remove_key_binding("prev-single-page")
 		mp.remove_key_binding("first-page")
 		mp.remove_key_binding("last-page")
-		if names ~= nil then
-			os.execute("rm "..names)
-		end
-		if opts.archive then
-			if utils.file_info(dir) then
-				os.execute("rm -r "..dir)
-			end
-		end
 		mp.commandv("loadfile", init_arg, "replace")
+	end
+end
+
+function remove_tmp_files()
+	close_manga_reader()
+	if names ~= nil then
+		os.execute("rm "..names)
+	end
+	if opts.archive then
+		if utils.file_info(dir) then
+			os.execute("rm -r "..dir)
+		end
 	end
 end
 
@@ -471,5 +475,5 @@ function toggle_reader()
 	end
 end
 
-mp.register_event("shutdown", close_manga_reader)
+mp.register_event("shutdown", remove_tmp_files)
 mp.add_key_binding("y", "toggle-manga-reader", toggle_reader)
