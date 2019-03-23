@@ -129,6 +129,15 @@ function check_image()
 	end
 end
 
+function escape_special_characters(str)
+	str = string.gsub(str, " ", "\\ ")
+	str = string.gsub(str, "%(", "\\(")
+	str = string.gsub(str, "%)", "\\)")
+	str = string.gsub(str, "%[", "\\[")
+	str = string.gsub(str, "%]", "\\]")
+	return str
+end
+
 function file_exists(name)
 	local f = io.open(name, "r")
 	if f == nil then
@@ -171,10 +180,10 @@ function get_root(path)
 	local root
 	if opts.archive then
 		root = string.gsub(path, "|.*", "")
-		root = string.gsub(root, " ", "\\ ")
+		root = escape_special_characters(root)
 	else
 		root = string.gsub(path, "/.*", "")
-		root = string.gsub(root, " ", "\\ ")
+		root = escape_special_characters(root)
 	end
 	return root
 end
@@ -432,7 +441,7 @@ function start_manga_reader()
 		end
 		dir = string.gsub(path, ".*|", "")
 		dir = string.gsub(dir, "/.*", "")
-		dir = string.gsub(dir, " ", "\\ ")
+		dir = escape_special_characters(dir)
 		init_arg = string.gsub(root, ".*/", "") 
 		init_arg = string.gsub(init_arg, "\\", "")
 	else
@@ -442,7 +451,7 @@ function start_manga_reader()
 	local filelist = get_filelist(root)
 	local i = 0
 	for filename in filelist:lines() do
-		filename = string.gsub(filename, " ", "\\ ")
+		filename = escape_special_characters(filename)
 		local dims = get_dims(filename)
 		if dims ~= nil then
 			filearray[i] = filename

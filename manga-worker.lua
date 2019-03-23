@@ -30,6 +30,15 @@ function check_aspect_ratio(a, b)
 	end
 end
 
+function escape_special_characters(str)
+	str = string.gsub(str, " ", "\\ ")
+	str = string.gsub(str, "%(", "\\(")
+	str = string.gsub(str, "%)", "\\)")
+	str = string.gsub(str, "%[", "\\[")
+	str = string.gsub(str, "%]", "\\]")
+	return str
+end
+
 function file_exists(name)
 	local f = io.open(name, "r")
 	if f == nil then
@@ -222,7 +231,7 @@ mp.register_script_message("start-worker", function(archive, manga, p7zip, rar, 
 	local filelist = get_filelist(root)
 	local i = 0
 	for filename in filelist:lines() do
-		filename = string.gsub(filename, " ", "\\ ")
+		filename = escape_special_characters(filename)
 		local dims = get_dims(filename)
 		if dims ~= nil then
 			filearray[i] = filename
