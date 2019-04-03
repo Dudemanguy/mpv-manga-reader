@@ -63,7 +63,7 @@ function check_if_rar()
 	io.input(rar)
 	local str = io.read()
 	io.close()
-	if string.find(str, "not RAR archive") == nil then
+	if str == nil then
 		opts.rar = true
 		return true
 	end
@@ -164,7 +164,7 @@ function get_filelist(path)
 		if opts.p7zip then
 			filelist = io.popen("7z l -slt "..archive.. " | grep 'Path =' | grep -v "..archive.." | sed 's/Path = //g'")
 		elseif opts.rar then
-			filelist = io.popen("unrar l "..archive)
+			filelist = io.popen("unrar lb "..archive)
 		elseif opts.tar then
 			filelist = io.popen("tar -tf "..archive.. " | sort")
 		elseif opts.zip then
@@ -207,7 +207,8 @@ function get_dims(page)
 		if opts.p7zip then
 			p = io.popen("7z e -so "..archive.." "..page.." | identify -")
 		elseif opts.rar then
-			p = io.popen("unrar p "..archive.." "..page.." | identify -")
+			os.execute("unrar x -o+ "..archive.." "..page.." &>/dev/null")
+			p = io.popen("identify "..page)
 		elseif opts.tar then
 			p = io.popen("tar -xOf "..archive.." "..page.." | identify -")
 		elseif opts.zip then
@@ -255,7 +256,7 @@ function double_page()
 		if opts.p7zip then
 			os.execute("7z e "..archive.." "..cur_page.." "..next_page)
 		elseif opts.rar then
-			os.execute("unrar e "..archive.." "..cur_page.." "..next_page)
+			os.execute("unrar x -o+ "..archive.." "..cur_page.." "..next_page)
 		elseif opts.tar then
 			p = io.popen("tar -xf "..archive.." "..cur_page.." "..next_page)
 		elseif opts.zip then
