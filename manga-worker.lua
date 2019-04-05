@@ -1,3 +1,4 @@
+require 'mp.options'
 local utils = require 'mp.utils'
 local filearray = {}
 local filedims = {}
@@ -10,10 +11,11 @@ local opts = {
 	zip = false
 }
 local aspect_ratio
-local root
+local index
 local length
 local names = nil
-local index
+local pages
+local root
 
 function check_aspect_ratio(a, b)
 	local m = a[0]+b[0]
@@ -90,10 +92,10 @@ end
 
 function create_stitches()
 	local start = get_index()
-	if start + 10 > length then
+	if start + pages > length then
 		last = length - 2
 	else
-		last = start+10
+		last = start+pages
 	end
 	for i=start,last do
 		if not (filearray[start] and filearray[last]) then
@@ -208,7 +210,7 @@ function remove_tmp_files()
 	end
 end
 
-mp.register_script_message("start-worker", function(archive, manga, p7zip, rar, tar, zip, ratio, base)
+mp.register_script_message("start-worker", function(archive, manga, p7zip, rar, tar, zip, ratio, page, base)
 	if archive == "true" then
 		opts.archive = true
 	end
@@ -228,6 +230,7 @@ mp.register_script_message("start-worker", function(archive, manga, p7zip, rar, 
 		opts.zip = true
 	end
 	root = base
+	pages = tonumber(page)
 	aspect_ratio = tonumber(ratio)
 	local filelist = get_filelist(root)
 	local i = 0

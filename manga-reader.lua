@@ -1,16 +1,18 @@
+require 'mp.options'
 local utils = require "mp.utils"
 local opts = {
 	archive = false,
+	aspect_ratio = 16/9,
 	double = false,
 	image = false,
 	init = false,
 	manga = true,
+	pages = 10,
 	p7zip = false,
 	rar = false,
 	tar = false,
 	zip = false
 }
-local aspect_ratio = 16/9
 local dir
 local filearray = {}
 local filedims = {}
@@ -37,7 +39,7 @@ function check_aspect_ratio(a, b)
 	else
 		n = b[1]
 	end
-	if m/n <= aspect_ratio then
+	if m/n <= opts.aspect_ratio then
 		return true
 	else
 		return false
@@ -430,6 +432,7 @@ function remove_tmp_files()
 end
 
 function start_manga_reader()
+	read_options(opts, "manga-reader")
 	local path = mp.get_property("path")
 	opts.archive = check_archive(path)
 	root = get_root(path)
@@ -465,7 +468,7 @@ function start_manga_reader()
 	set_keys()
 	mp.commandv("script-message-to", "manga_worker", "start-worker", tostring(opts.archive),
                 tostring(opts.manga), tostring(opts.p7zip), tostring(opts.rar), tostring(opts.tar),
-                tostring(opts.zip), tostring(aspect_ratio), root)
+                tostring(opts.zip), tostring(opts.aspect_ratio), tostring(opts.pages), root)
 	mp.set_property_bool("osc", false)
 	mp.add_key_binding("m", "toggle-manga-mode", toggle_manga_mode)
 	mp.add_key_binding("d", "toggle-double-page", toggle_double_page)
