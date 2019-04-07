@@ -13,10 +13,10 @@ local opts = {
 	aspect_ratio = 16/9,
 	double = false,
 	manga = true,
-	offset = 40,
-	pages = 0,
+	offset = 20,
+	pages = 10,
 }
-local index
+local index = 0
 local length
 local names = nil
 local root
@@ -75,28 +75,8 @@ function generate_name(cur_page, next_page)
 	return name
 end
 
-function get_index()
-	local filename = mp.get_property("filename")
-	if string.match(filename, "-") then
-		split = str_split(filename, "-")
-		filename = split[0]
-	end
-	local index
-	for i=0,length do
-		if string.match(filearray[i], filename) then
-			index = i
-			break
-		end
-		if string.match(filename, filearray[i]) then
-			index = i
-			break
-		end
-	end
-	return index
-end
-
 function create_stitches()
-	local start = get_index()
+	local start = index
 	start = opts.offset*worker_num + start
 	if start + opts.pages > length then
 		last = length - 2
@@ -218,7 +198,7 @@ function remove_tmp_files()
 	end
 end
 
-mp.register_script_message("start-worker", function(archive, p7zip, rar, tar, zip, index, base)
+mp.register_script_message("start-worker", function(archive, p7zip, rar, tar, zip, i, base)
 	read_options(opts, "manga-reader")
 	if archive == "true" then
 		detect.archive = true
@@ -236,7 +216,7 @@ mp.register_script_message("start-worker", function(archive, p7zip, rar, tar, zi
 		detect.zip = true
 	end
 	root = base
-	worker_num = tonumber(index) - 1
+	worker_num = tonumber(i) - 1
 	local filelist = get_filelist(root)
 	local i = 0
 	for filename in filelist:lines() do
@@ -263,4 +243,8 @@ mp.register_script_message("toggle-manga", function(bool)
 	end
 	remove_tmp_files()
 	names = nil
+end)
+
+mp.register_script_message("worker-index", function(num)
+	index = tonumber(num)
 end)

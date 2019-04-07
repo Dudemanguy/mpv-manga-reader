@@ -13,7 +13,7 @@ local opts = {
 	aspect_ratio = 16/9,
 	double = false,
 	manga = true,
-	offset = 40,
+	offset = 20,
 	pages = 10,
 }
 local dir
@@ -296,6 +296,16 @@ function single_page()
 	end
 end
 
+function update_worker_index()
+	local i = 1
+	while workers[i] do
+		local name = string.gsub(workers[i], "%..*", "")
+		name = string.gsub(name, "-", "_")
+		mp.commandv("script-message-to", name, "worker-index", tostring(index))
+		i = i + 1
+	end
+end
+
 function change_page(amount)
 	index = index + amount
 	if index < 0 then
@@ -322,6 +332,7 @@ function change_page(amount)
 		end
 		single_page()
 	end
+	update_worker_index()
 end
 
 function next_page()
