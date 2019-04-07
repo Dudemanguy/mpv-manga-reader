@@ -2,20 +2,25 @@ require 'mp.options'
 local utils = require 'mp.utils'
 local filearray = {}
 local filedims = {}
-local opts = {
+local detect = {
 	archive = false,
-	manga = false,
 	p7zip = false,
 	rar = false,
 	tar = false,
 	zip = false
 }
-local aspect_ratio
+local opts = {
+	aspect_ratio = 16/9,
+	double = false,
+	manga = true,
+	offset = 40,
+	pages = 0,
+}
 local index
 local length
 local names = nil
-local pages
 local root
+local worker_num
 
 function check_aspect_ratio(a, b)
 	local m = a[0]+b[0]
@@ -25,7 +30,7 @@ function check_aspect_ratio(a, b)
 	else
 		n = b[1]
 	end
-	if m/n <= aspect_ratio then
+	if m/n <= opts.aspect_ratio then
 		return true
 	else
 		return false
@@ -92,12 +97,15 @@ end
 
 function create_stitches()
 	local start = get_index()
-	if start + pages > length then
+	start = opts.offset*worker_num + start
+	if start + opts.pages > length then
 		last = length - 2
 	else
-		last = start+pages
+		last = start+opts.pages
 	end
 	for i=start,last do
+		local cur_page = filearray[i]
+		local next_page = filearray[i+1]
 		if not (filearray[start] and filearray[last]) then
 			return
 		end
@@ -109,28 +117,28 @@ function create_stitches()
 			names = names.." "..name
 		end
 		if not file_exists(name) and width_check then
-			if opts.archive then
+			if detect.archive then
 				local archive = string.gsub(root, ".*/", "")
-				if opts.p7zip then
-					os.execute("7z e "..archive.." "..filearray[i].." "..filearray[i+1].." &>/dev/null")
-				elseif opts.rar then
-					os.execute("unrar x -o+ "..archive.." "..filearray[i].." "..filearray[i+1].." &>/dev/null")
-				elseif opts.tar then
-					os.execute("tar -xf "..archive.." "..filearray[i].." "..filearray[i+1].." &>/dev/null")
-				elseif opts.zip then
-					os.execute("unzip "..archive.." "..filearray[i].." "..filearray[i+1].." &>/dev/null")
+				if detect.p7zip then
+					os.execute("7z e "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
+				elseif detect.rar then
+					os.execute("unrar x -o+ "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
+				elseif detect.tar then
+					os.execute("tar -xf "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
+				elseif detect.zip then
+					os.execute("unzip "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
 				end
 			else
 				cur_page = utils.join_path(root, filearray[i])
 				next_page = utils.join_path(root, filearray[i+1])
 			end
 			if opts.manga then
-				os.execute("convert "..filearray[i+1].." "..filearray[i].." +append "..name.." &>/dev/null")
+				os.execute("convert "..next_page.." "..cur_page.." +append "..name.." &>/dev/null")
 			else
-				os.execute("convert "..filearray[i].." "..filearray[i+1].." +append "..name.." &>/dev/null")
+				os.execute("convert "..cur_page.." "..next_page.." +append "..name.." &>/dev/null")
 			end
-			if opts.archive then
-				os.execute("rm "..filearray[i].." "..filearray[i+1].." &>/dev/null")
+			if detect.archive then
+				os.execute("rm "..cur_page.." "..next_page.." &>/dev/null")
 			end
 		end
 	end
@@ -150,16 +158,16 @@ function get_dims(page)
 	local dims = {}
 	local p
 	local str
-	if opts.archive then
+	if detect.archive then
 		local archive = string.gsub(root, ".*/", "")
-		if opts.p7zip then
+		if detect.p7zip then
 			p = io.popen("7z e -so "..archive.." "..page.." | identify -")
-		elseif opts.rar then
+		elseif detect.rar then
 			os.execute("unrar x -o+ "..archive.." "..page.." &>/dev/null")
 			p = io.popen("identify "..page)
-		elseif opts.tar then
+		elseif detect.tar then
 			p = io.popen("tar -xOf "..archive.." "..page.." | identify -")
-		elseif opts.zip then
+		elseif detect.zip then
 			p = io.popen("unzip -p "..archive.." "..page.." | identify -")
 		end
 		io.input(p)
@@ -187,15 +195,15 @@ function get_dims(page)
 end
 
 function get_filelist(path)
-	if opts.archive then
+	if detect.archive then
 		local archive = string.gsub(path, ".*/", "")
-		if opts.p7zip then
+		if detect.p7zip then
 			filelist = io.popen("7z l -slt "..archive.. " | grep 'Path =' | grep -v "..archive.." | sed 's/Path = //g'")
-		elseif opts.rar then
+		elseif detect.rar then
 			filelist = io.popen("unrar lb "..archive)
-		elseif opts.tar then
+		elseif detect.tar then
 			filelist = io.popen("tar -tf "..archive.. " | sort")
-		elseif opts.zip then
+		elseif detect.zip then
 			filelist = io.popen("zipinfo -1 "..archive)
 		end
 	else
@@ -210,28 +218,25 @@ function remove_tmp_files()
 	end
 end
 
-mp.register_script_message("start-worker", function(archive, manga, p7zip, rar, tar, zip, ratio, page, base)
+mp.register_script_message("start-worker", function(archive, p7zip, rar, tar, zip, index, base)
+	read_options(opts, "manga-reader")
 	if archive == "true" then
-		opts.archive = true
-	end
-	if manga == "true" then
-		opts.manga = true
+		detect.archive = true
 	end
 	if p7zip == "true" then
-		opts.p7zip = true
+		detect.p7zip = true
 	end
 	if rar == "true" then
-		opts.rar = true
+		detect.rar = true
 	end
 	if tar == "true" then
-		opts.tar = true
+		detect.tar = true
 	end
 	if zip == "true" then
-		opts.zip = true
+		detect.zip = true
 	end
 	root = base
-	pages = tonumber(page)
-	aspect_ratio = tonumber(ratio)
+	worker_num = tonumber(index) - 1
 	local filelist = get_filelist(root)
 	local i = 0
 	for filename in filelist:lines() do
@@ -247,4 +252,15 @@ mp.register_script_message("start-worker", function(archive, manga, p7zip, rar, 
 	length = i
 	mp.register_event("file-loaded", create_stitches)
 	mp.register_event("shutdown", remove_tmp_files)
+end)
+
+mp.register_script_message("toggle-manga", function(bool)
+	str = bool
+	if str == "true" then
+		opts.manga = true
+	else
+		opts.manga = false
+	end
+	remove_tmp_files()
+	names = nil
 end)

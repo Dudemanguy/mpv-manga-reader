@@ -1,17 +1,20 @@
 require 'mp.options'
 local utils = require "mp.utils"
-local opts = {
+local detect = {
 	archive = false,
-	aspect_ratio = 16/9,
-	double = false,
 	image = false,
 	init = false,
-	manga = true,
-	pages = 10,
 	p7zip = false,
 	rar = false,
 	tar = false,
-	zip = false
+	zip = false,
+}
+local opts = {
+	aspect_ratio = 16/9,
+	double = false,
+	manga = true,
+	offset = 40,
+	pages = 10,
 }
 local dir
 local filearray = {}
@@ -22,6 +25,7 @@ local length
 local names = nil
 local root
 local valid_width
+local workers = {}
 
 function check_archive(path)
 	if string.find(path, "archive://") == nil then
@@ -53,7 +57,7 @@ function check_if_p7zip()
 	local str = io.read()
 	io.close()
 	if string.find(str, "ERROR") == nil then
-		opts.p7zip = true
+		detect.p7zip = true
 		return true
 	end
 	return false
@@ -66,7 +70,7 @@ function check_if_rar()
 	local str = io.read()
 	io.close()
 	if str == nil then
-		opts.rar = true
+		detect.rar = true
 		return true
 	end
 	return false
@@ -74,7 +78,7 @@ end
 
 function check_if_tar()
 	if string.find(root, "%.tar") then
-		opts.tar = true
+		detect.tar = true
 		return true
 	end
 	return false
@@ -87,7 +91,7 @@ function check_if_zip()
 	local str = io.read()
 	io.close()
 	if string.find(str, "probably not a zip file") == nil then
-		opts.zip = true
+		detect.zip = true
 		return true
 	end
 	return false
@@ -161,15 +165,15 @@ end
 
 function get_filelist(path)
 	local filelist
-	if opts.archive then
+	if detect.archive then
 		local archive = string.gsub(path, ".*/", "")
-		if opts.p7zip then
+		if detect.p7zip then
 			filelist = io.popen("7z l -slt "..archive.. " | grep 'Path =' | grep -v "..archive.." | sed 's/Path = //g'")
-		elseif opts.rar then
+		elseif detect.rar then
 			filelist = io.popen("unrar lb "..archive)
-		elseif opts.tar then
+		elseif detect.tar then
 			filelist = io.popen("tar -tf "..archive.. " | sort")
-		elseif opts.zip then
+		elseif detect.zip then
 			filelist = io.popen("zipinfo -1 "..archive)
 		end
 	else
@@ -180,7 +184,7 @@ end
 
 function get_root(path)
 	local root
-	if opts.archive then
+	if detect.archive then
 		root = string.gsub(path, "|.*", "")
 		root = escape_special_characters(root)
 	else
@@ -204,16 +208,16 @@ function get_dims(page)
 	local dims = {}
 	local p
 	local str
-	if opts.archive then
+	if detect.archive then
 		local archive = string.gsub(root, ".*/", "")
-		if opts.p7zip then
+		if detect.p7zip then
 			p = io.popen("7z e -so "..archive.." "..page.." | identify -")
-		elseif opts.rar then
+		elseif detect.rar then
 			os.execute("unrar x -o+ "..archive.." "..page.." &>/dev/null")
 			p = io.popen("identify "..page)
-		elseif opts.tar then
+		elseif detect.tar then
 			p = io.popen("tar -xOf "..archive.." "..page.." | identify -")
-		elseif opts.zip then
+		elseif detect.zip then
 			p = io.popen("unzip -p "..archive.." "..page.." | identify -")
 		end
 		io.input(p)
@@ -253,15 +257,15 @@ function double_page()
 	else
 		names = names.." "..name
 	end
-	if opts.archive then
+	if detect.archive then
 		local archive = string.gsub(root, ".*/", "")
-		if opts.p7zip then
+		if detect.p7zip then
 			os.execute("7z e "..archive.." "..cur_page.." "..next_page)
-		elseif opts.rar then
+		elseif detect.rar then
 			os.execute("unrar x -o+ "..archive.." "..cur_page.." "..next_page)
-		elseif opts.tar then
+		elseif detect.tar then
 			p = io.popen("tar -xf "..archive.." "..cur_page.." "..next_page)
-		elseif opts.zip then
+		elseif detect.zip then
 			os.execute("unzip "..archive.." "..cur_page.." "..next_page)
 		end
 	else
@@ -273,7 +277,7 @@ function double_page()
 	else
 		os.execute("convert "..cur_page.." "..next_page.." +append "..name)
 	end
-	if opts.archive then
+	if detect.archive then
 		os.execute("rm "..cur_page.." "..next_page)
 	end
 	mp.commandv("loadfile", name, "replace")
@@ -281,7 +285,7 @@ end
 
 function single_page()
 	local page = filearray[index]
-	if opts.archive then
+	if detect.archive then
 		local noescaperoot = string.gsub(root, "\\", "")
 		local noescapepage = string.gsub(page, "\\", "")
 		mp.commandv("loadfile", noescaperoot.."|"..noescapepage, "replace")
@@ -375,10 +379,43 @@ function set_keys()
 end
 
 function startup_msg()
-	if opts.image then
+	if detect.image then
 		mp.osd_message("Manga Reader Started")
 	else
 		mp.osd_message("Not an image")
+	end
+end
+
+function remove_tmp_files()
+	close_manga_reader()
+	if names ~= nil then
+		os.execute("rm "..names.." &>/dev/null")
+	end
+	if detect.archive then
+		if utils.file_info(dir) then
+			os.execute("rm -r "..dir.." &>/dev/null")
+		end
+	end
+end
+
+function remove_tmp_files_no_shutdown()
+	if names ~= nil then
+		os.execute("rm "..names.." &>/dev/null")
+	end
+	if detect.archive then
+		if utils.file_info(dir) then
+			os.execute("rm -r "..dir.." &>/dev/null")
+		end
+	end
+end
+
+function update_worker_bools()
+	local i = 1
+	while workers[i] do
+		local name = string.gsub(workers[i], "%..*", "")
+		name = string.gsub(name, "-", "_")
+		mp.commandv("script-message-to", name, "toggle-manga", tostring(opts.manga))
+		i = i + 1
 	end
 end
 
@@ -394,21 +431,23 @@ function toggle_double_page()
 end
 
 function toggle_manga_mode()
+	local name = mp.get_property("path")
 	if opts.manga then
 		mp.osd_message("Manga Mode Off")
 		opts.manga = false
-		set_keys()
-		change_page(0)
 	else
 		mp.osd_message("Manga Mode On")
 		opts.manga = true
-		set_keys()
-		change_page(0)
 	end
+	set_keys()
+	remove_tmp_files_no_shutdown()
+	update_worker_bools()
+	names = nil
+	change_page(0)
 end
 
 function close_manga_reader()
-	if opts.init then
+	if detect.init then
 		mp.remove_key_binding("next-page")
 		mp.remove_key_binding("prev-page")
 		mp.remove_key_binding("next-single-page")
@@ -419,24 +458,38 @@ function close_manga_reader()
 	end
 end
 
-function remove_tmp_files()
-	close_manga_reader()
-	if names ~= nil then
-		os.execute("rm "..names.." &>/dev/null")
-	end
-	if opts.archive then
-		if utils.file_info(dir) then
-			os.execute("rm -r "..dir.." &>/dev/null")
-		end
+function send_to_workers(workers)
+	local i = 1
+	while workers[i] do
+		local name = string.gsub(workers[i], "%..*", "")
+		name = string.gsub(name, "-", "_")
+		mp.commandv("script-message-to", name, "start-worker", tostring(detect.archive), 
+                    tostring(detect.p7zip), tostring(detect.rar), tostring(detect.tar),
+                    tostring(detect.zip), tostring(i), root)
+		i = i + 1
 	end
 end
 
 function start_manga_reader()
 	read_options(opts, "manga-reader")
+	local home = io.popen("echo $HOME")
+	io.input(home)
+	local home_dir = io.read()
+	io.close()
+	local cfg_dir = ".config/mpv/scripts"
+	local script_dir = utils.join_path(home_dir, cfg_dir)
+	local scripts = utils.readdir(script_dir)
+	local i = 1
+	while scripts[i] do
+		if string.find(scripts[i], "manga-worker", 0, true) then
+			workers[i] = scripts[i]
+		end
+		i = i + 1
+	end
 	local path = mp.get_property("path")
-	opts.archive = check_archive(path)
+	detect.archive = check_archive(path)
 	root = get_root(path)
-	if opts.archive then
+	if detect.archive then
 		local type_found = check_archive_type()
 		if not type_found then
 			mp.osd_message("Archive type not supported")
@@ -453,7 +506,7 @@ function start_manga_reader()
 		init_arg = string.gsub(init_arg, "\\", "")
 	end
 	local filelist = get_filelist(root)
-	local i = 0
+	i = 0
 	for filename in filelist:lines() do
 		filename = escape_special_characters(filename)
 		local dims = get_dims(filename)
@@ -466,10 +519,9 @@ function start_manga_reader()
 	length = i
 	filelist:close()
 	set_keys()
-	mp.commandv("script-message-to", "manga_worker", "start-worker", tostring(opts.archive),
-                tostring(opts.manga), tostring(opts.p7zip), tostring(opts.rar), tostring(opts.tar),
-                tostring(opts.zip), tostring(opts.aspect_ratio), tostring(opts.pages), root)
+	send_to_workers(workers)
 	mp.set_property_bool("osc", false)
+	mp.set_property_bool("idle", true)
 	mp.add_key_binding("m", "toggle-manga-mode", toggle_manga_mode)
 	mp.add_key_binding("d", "toggle-double-page", toggle_double_page)
 	index = 0
@@ -477,14 +529,14 @@ function start_manga_reader()
 end
 
 function toggle_reader()
-	if opts.init then
+	if detect.init then
 		close_manga_reader()
-		opts.init = false
+		detect.init = false
 		mp.osd_message("Closing Reader")
 	else
-		opts.image = check_image()
-		if opts.image then
-			opts.init = true
+		detect.image = check_image()
+		if detect.image then
+			detect.init = true
 			start_manga_reader()
 		end
 		startup_msg()
