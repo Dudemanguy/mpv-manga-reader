@@ -51,4 +51,4 @@ Defaults to `20`. This is only used if there are multiple copies of manga-worker
 Defaults to `10`. Tells the manga-worker scripts how many pages to stitch together.
 
 ## Notes
-Hard quitting (i.e. pressing `q` to exit mpv) will call the `close_manga_reader` function and remove extraneous files and folders.
+Quitting will call the `close_manga_reader` function and remove extraneous files and folders created from archive extraction and/or imagemagick.

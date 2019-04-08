@@ -404,6 +404,7 @@ function remove_tmp_files()
 	end
 	if detect.archive then
 		if utils.file_info(dir) then
+			dir = escape_special_characters(dir)
 			os.execute("rm -r "..dir.." &>/dev/null")
 		end
 	end
@@ -415,6 +416,7 @@ function remove_tmp_files_no_shutdown()
 	end
 	if detect.archive then
 		if utils.file_info(dir) then
+			dir = escape_special_characters(dir)
 			os.execute("rm -r "..dir.." &>/dev/null")
 		end
 	end
@@ -509,7 +511,6 @@ function start_manga_reader()
 		end
 		dir = string.gsub(path, ".*|", "")
 		dir = string.gsub(dir, "/.*", "")
-		dir = escape_special_characters(dir)
 		init_arg = string.gsub(root, ".*/", "") 
 		init_arg = string.gsub(init_arg, "\\", "")
 	else
