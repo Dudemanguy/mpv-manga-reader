@@ -154,11 +154,27 @@ function file_exists(name)
 	end
 end
 
+function strip_file_ext(str)
+	local pos = 0
+	local ext = string.byte(".")
+	for i = 1, #str do
+		if str:byte(i) == ext then
+			pos = i
+		end
+	end
+	if pos == 0 then
+		return str
+	else
+		local stripped = string.sub(str, 1, pos - 1)
+		return stripped
+	end
+end
+
 function generate_name(cur_page, next_page)
 	local cur_base = string.gsub(cur_page, ".*/", "")
-	cur_base = string.gsub(cur_base, "%..*", "")
+	cur_base = strip_file_ext(cur_base)
 	local next_base = string.gsub(next_page, ".*/", "")
-	next_base = string.gsub(next_base, "%..*", "")
+	next_base = strip_file_ext(next_base)
 	local name = cur_base.."-"..next_base..".png"
 	return name
 end
@@ -299,7 +315,7 @@ end
 function update_worker_index()
 	local i = 1
 	while workers[i] do
-		local name = string.gsub(workers[i], "%..*", "")
+		local name = strip_file_ext(workers[i])
 		name = string.gsub(name, "-", "_")
 		mp.commandv("script-message-to", name, "worker-index", tostring(index))
 		i = i + 1
@@ -425,7 +441,7 @@ end
 function update_worker_bools()
 	local i = 1
 	while workers[i] do
-		local name = string.gsub(workers[i], "%..*", "")
+		local name = strip_file_ext(workers[i])
 		name = string.gsub(name, "-", "_")
 		mp.commandv("script-message-to", name, "toggle-manga", tostring(opts.manga))
 		i = i + 1
@@ -474,7 +490,7 @@ end
 function send_to_workers(workers)
 	local i = 1
 	while workers[i] do
-		local name = string.gsub(workers[i], "%..*", "")
+		local name = strip_file_ext(workers[i])
 		name = string.gsub(name, "-", "_")
 		mp.commandv("script-message-to", name, "start-worker", tostring(detect.archive), 
                     tostring(detect.p7zip), tostring(detect.rar), tostring(detect.tar),

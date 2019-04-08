@@ -66,11 +66,27 @@ function str_split(str, delim)
 	return split
 end
 
+function strip_file_ext(str)
+	local pos = 0
+	local ext = string.byte(".")
+	for i = 1, #str do
+		if str:byte(i) == ext then
+			pos = i
+		end
+	end
+	if pos == 0 then
+		return str
+	else
+		local stripped = string.sub(str, 1, pos - 1)
+		return stripped
+	end
+end
+
 function generate_name(cur_page, next_page)
 	local cur_base = string.gsub(cur_page, ".*/", "")
-	cur_base = string.gsub(cur_base, "%..*", "")
+	cur_base = strip_file_ext(cur_base)
 	local next_base = string.gsub(next_page, ".*/", "")
-	next_base = string.gsub(next_base, "%..*", "")
+	next_base = strip_file_ext(next_base)
 	local name = cur_base.."-"..next_base..".png"
 	return name
 end
