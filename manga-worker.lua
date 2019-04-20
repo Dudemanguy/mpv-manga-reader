@@ -15,6 +15,7 @@ local opts = {
 	manga = true,
 	offset = 20,
 	pages = 10,
+	worker = true,
 }
 local index = 0
 local length
@@ -100,6 +101,9 @@ function create_stitches()
 		last = start+opts.pages
 	end
 	for i=start,last do
+		if not opts.worker then
+			break
+		end
 		local cur_page = filearray[i]
 		local next_page = filearray[i+1]
 		if not (filearray[start] and filearray[last]) then
@@ -214,7 +218,7 @@ function remove_tmp_files()
 	end
 end
 
-mp.register_script_message("start-worker", function(archive, p7zip, rar, tar, zip, i, base)
+mp.register_script_message("setup-worker", function(archive, p7zip, rar, tar, zip, i, base)
 	read_options(opts, "manga-reader")
 	if archive == "true" then
 		detect.archive = true
@@ -250,15 +254,24 @@ mp.register_script_message("start-worker", function(archive, p7zip, rar, tar, zi
 	mp.register_event("shutdown", remove_tmp_files)
 end)
 
-mp.register_script_message("toggle-manga", function(bool)
-	str = bool
-	if str == "true" then
+mp.register_script_message("update-bools", function(manga, worker)
+	local str1 = manga
+	local str2 = worker
+	local prev_manga = opts.manga
+	if str1 == "true" then
 		opts.manga = true
 	else
 		opts.manga = false
 	end
-	remove_tmp_files()
-	names = nil
+	if str2 == "true" then
+		opts.worker = true
+	else
+		opts.worker = false
+	end
+	if prev_manga ~= opts.manga then
+		remove_tmp_files()
+		names = nil
+	end
 end)
 
 mp.register_script_message("worker-index", function(num)

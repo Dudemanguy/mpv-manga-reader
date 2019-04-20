@@ -15,6 +15,7 @@ local opts = {
 	manga = true,
 	offset = 20,
 	pages = 10,
+	worker = true,
 }
 local dir
 local filearray = {}
@@ -348,7 +349,9 @@ function change_page(amount)
 		end
 		single_page()
 	end
-	update_worker_index()
+	if opts.worker then
+		update_worker_index()
+	end
 end
 
 function next_page()
@@ -438,13 +441,25 @@ function remove_tmp_files_no_shutdown()
 	end
 end
 
+function setup_workers(workers)
+	local i = 1
+	while workers[i] do
+		local name = strip_file_ext(workers[i])
+		name = string.gsub(name, "-", "_")
+		mp.commandv("script-message-to", name, "setup-worker", tostring(detect.archive), 
+                    tostring(detect.p7zip), tostring(detect.rar), tostring(detect.tar),
+                    tostring(detect.zip), tostring(i), root)
+		i = i + 1
+	end
+end
+
 function update_worker_bools()
 	local i = 1
 	while workers[i] do
 		local name = strip_file_ext(workers[i])
 		name = string.gsub(name, "-", "_")
-		mp.commandv("script-message-to", name, "toggle-manga", tostring(opts.manga))
-		i = i + 1
+		mp.commandv("script-message-to", name, "update-bools", tostring(opts.manga), tostring(opts.worker))
+		i = i +1
 	end
 end
 
@@ -475,6 +490,17 @@ function toggle_manga_mode()
 	change_page(0)
 end
 
+function toggle_worker()
+	if opts.worker then
+		opts.worker = false
+		mp.osd_message("Stopping Workers")
+	else
+		opts.worker = true
+		mp.osd_message("Starting Workers")
+	end
+	update_worker_bools()
+end
+
 function close_manga_reader()
 	if detect.init then
 		mp.remove_key_binding("next-page")
@@ -485,18 +511,8 @@ function close_manga_reader()
 		mp.remove_key_binding("last-page")
 		mp.commandv("loadfile", init_arg, "replace")
 	end
-end
-
-function send_to_workers(workers)
-	local i = 1
-	while workers[i] do
-		local name = strip_file_ext(workers[i])
-		name = string.gsub(name, "-", "_")
-		mp.commandv("script-message-to", name, "start-worker", tostring(detect.archive), 
-                    tostring(detect.p7zip), tostring(detect.rar), tostring(detect.tar),
-                    tostring(detect.zip), tostring(i), root)
-		i = i + 1
-	end
+	opts.worker = false
+	update_worker_bools()
 end
 
 function start_manga_reader()
@@ -547,11 +563,14 @@ function start_manga_reader()
 	length = i
 	filelist:close()
 	set_keys()
-	send_to_workers(workers)
+	if workers[1] then
+		setup_workers(workers)
+	end
 	mp.set_property_bool("osc", false)
 	mp.set_property_bool("idle", true)
 	mp.add_key_binding("m", "toggle-manga-mode", toggle_manga_mode)
 	mp.add_key_binding("d", "toggle-double-page", toggle_double_page)
+	mp.add_key_binding("a", "toggle-worker", toggle_worker)
 	index = 0
 	change_page(0)
 end
