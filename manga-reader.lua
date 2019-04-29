@@ -2,6 +2,7 @@ require 'mp.options'
 local utils = require "mp.utils"
 local detect = {
 	archive = false,
+	err = false,
 	image = false,
 	init = false,
 	p7zip = false,
@@ -409,8 +410,10 @@ function set_keys()
 end
 
 function startup_msg()
-	if detect.image then
+	if detect.image and not detect.err then
 		mp.osd_message("Manga Reader Started")
+	elseif detect.archive and detect.err then
+		mp.osd_message("Archive type not supported")
 	else
 		mp.osd_message("Not an image")
 	end
@@ -421,7 +424,7 @@ function remove_tmp_files()
 	if names ~= nil then
 		os.execute("rm "..names.." &>/dev/null")
 	end
-	if detect.archive then
+	if detect.archive and not detect.err then
 		if utils.file_info(dir) then
 			dir = escape_special_characters(dir)
 			os.execute("rm -r "..dir.." &>/dev/null")
@@ -433,7 +436,7 @@ function remove_tmp_files_no_shutdown()
 	if names ~= nil then
 		os.execute("rm "..names.." &>/dev/null")
 	end
-	if detect.archive then
+	if detect.archive and not detect.err then
 		if utils.file_info(dir) then
 			dir = escape_special_characters(dir)
 			os.execute("rm -r "..dir.." &>/dev/null")
@@ -509,6 +512,8 @@ function close_manga_reader()
 		mp.remove_key_binding("prev-single-page")
 		mp.remove_key_binding("first-page")
 		mp.remove_key_binding("last-page")
+	end
+	if not detect.err and detect.image then
 		mp.commandv("loadfile", init_arg, "replace")
 	end
 	opts.worker = false
@@ -537,8 +542,8 @@ function start_manga_reader()
 	if detect.archive then
 		local type_found = check_archive_type()
 		if not type_found then
-			mp.osd_message("Archive type not supported")
-			close_manga_reader()
+			detect.err = true
+			toggle_reader()
 			return
 		end
 		dir = string.gsub(path, ".*|", "")
