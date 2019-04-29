@@ -15,7 +15,6 @@ mpv-manga-reader obviously depends on mpv. Using mpv built with libarchive suppo
 * `sed`
 * `sort`
 * `tar`
-* `unrar`
 * `zip` and `zipinfo`
 
 In theory, this can work on Windows however all of the path/shell stuff is written specifically with \*nix in mind. Since I do not own a Windows machine, there is no way I can test it. However, PRs for Windows support are welcome.

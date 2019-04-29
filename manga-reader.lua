@@ -54,11 +54,11 @@ end
 
 function check_if_p7zip()
 	local archive = string.gsub(root, ".*/", "")
-	local p7zip = io.popen("7z t "..archive)
+	local p7zip = io.popen("7z t "..archive.." | grep 'Type'")
 	io.input(p7zip)
 	local str = io.read()
 	io.close()
-	if string.find(str, "ERROR") == nil then
+	if string.find(str, "Type = zip") == nil then
 		detect.p7zip = true
 		return true
 	end
@@ -67,11 +67,11 @@ end
 
 function check_if_rar()
 	local archive = string.gsub(root, ".*/", "")
-	local rar = io.popen("unrar t "..archive.." | grep 'not RAR archive'")
+	local rar = io.popen("7z t "..archive.." | grep 'Type'")
 	io.input(rar)
 	local str = io.read()
 	io.close()
-	if str == nil then
+	if string.find(str, "Type = Rar") or string.find(str, "Type = rar") then
 		detect.rar = true
 		return true
 	end
@@ -188,7 +188,7 @@ function get_filelist(path)
 		if detect.p7zip then
 			filelist = io.popen("7z l -slt "..archive.. " | grep 'Path =' | grep -v "..archive.." | sed 's/Path = //g'")
 		elseif detect.rar then
-			filelist = io.popen("unrar lb "..archive)
+			filelist = io.popen("7z l -slt "..archive.. " | grep 'Path =' | grep -v "..archive.." | sed 's/Path = //g'")
 		elseif detect.tar then
 			filelist = io.popen("tar -tf "..archive.. " | sort")
 		elseif detect.zip then
@@ -231,8 +231,7 @@ function get_dims(page)
 		if detect.p7zip then
 			p = io.popen("7z e -so "..archive.." "..page.." | identify -")
 		elseif detect.rar then
-			os.execute("unrar x -o+ "..archive.." "..page.." &>/dev/null")
-			p = io.popen("identify "..page)
+			p = io.popen("7z e -so "..archive.." "..page.." | identify -")
 		elseif detect.tar then
 			p = io.popen("tar -xOf "..archive.." "..page.." | identify -")
 		elseif detect.zip then
@@ -280,7 +279,7 @@ function double_page()
 		if detect.p7zip then
 			os.execute("7z e "..archive.." "..cur_page.." "..next_page)
 		elseif detect.rar then
-			os.execute("unrar x -o+ "..archive.." "..cur_page.." "..next_page)
+			os.execute("7z e "..archive.." "..cur_page.." "..next_page)
 		elseif detect.tar then
 			p = io.popen("tar -xf "..archive.." "..cur_page.." "..next_page)
 		elseif detect.zip then

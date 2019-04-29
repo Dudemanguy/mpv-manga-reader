@@ -122,7 +122,7 @@ function create_stitches()
 				if detect.p7zip then
 					os.execute("7z e "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
 				elseif detect.rar then
-					os.execute("unrar x -o+ "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
+					os.execute("7z e "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
 				elseif detect.tar then
 					os.execute("tar -xf "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
 				elseif detect.zip then
@@ -163,8 +163,7 @@ function get_dims(page)
 		if detect.p7zip then
 			p = io.popen("7z e -so "..archive.." "..page.." | identify -")
 		elseif detect.rar then
-			os.execute("unrar x -o+ "..archive.." "..page.." &>/dev/null")
-			p = io.popen("identify "..page)
+			p = io.popen("7z e -so "..archive.." "..page.." | identify -")
 		elseif detect.tar then
 			p = io.popen("tar -xOf "..archive.." "..page.." | identify -")
 		elseif detect.zip then
@@ -200,7 +199,7 @@ function get_filelist(path)
 		if detect.p7zip then
 			filelist = io.popen("7z l -slt "..archive.. " | grep 'Path =' | grep -v "..archive.." | sed 's/Path = //g'")
 		elseif detect.rar then
-			filelist = io.popen("unrar lb "..archive)
+			filelist = io.popen("7z l -slt "..archive.. " | grep 'Path =' | grep -v "..archive.." | sed 's/Path = //g'")
 		elseif detect.tar then
 			filelist = io.popen("tar -tf "..archive.. " | sort")
 		elseif detect.zip then
