@@ -5,11 +5,15 @@ mpv-manga-reader is a fairly hacky (but working) script to make mpv a usable man
 Reading archives with mpv is currently broken on many systems due to some locale nonsense. This pull request, [mpv-player/mpv#6438](https://github.com/mpv-player/mpv/pull/6438), is a good fix and is recommended.
 
 ## Dependencies
-mpv-manga-reader obviously depends on mpv. Using an mpv with libarchive support is also recommended. Due to the lack of decent image manipulating libraries in lua, I decided to instead make several shell calls instead. Here is a list of everything you will need in your path.
+mpv-manga-reader obviously depends on mpv. Using mpv built with libarchive support is also recommended. Due to the lack of decent image manipulating libraries in lua, I decided to instead make several shell calls instead. Here is a list of everything you will need in your path.
 
 * `7z` (p7zip)
 * `convert` and `identify` (ImageMagick)
+* `grep`
+* `ls`
 * `rm`
+* `sed`
+* `sort`
 * `tar`
 * `unrar`
 * `zip` and `zipinfo`
