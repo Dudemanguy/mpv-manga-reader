@@ -281,7 +281,7 @@ function double_page()
 		elseif detect.rar then
 			os.execute("7z e "..archive.." "..cur_page.." "..next_page)
 		elseif detect.tar then
-			p = io.popen("tar -xf "..archive.." "..cur_page.." "..next_page)
+			os.execute("tar -xf "..archive.." "..cur_page.." "..next_page)
 		elseif detect.zip then
 			os.execute("unzip "..archive.." "..cur_page.." "..next_page)
 		end
