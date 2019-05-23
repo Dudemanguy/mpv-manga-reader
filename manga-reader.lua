@@ -277,9 +277,9 @@ function double_page()
 	if detect.archive then
 		local archive = string.gsub(root, ".*/", "")
 		if detect.p7zip then
-			os.execute("7z e "..archive.." "..cur_page.." "..next_page)
+			os.execute("7z x "..archive.." "..cur_page.." "..next_page)
 		elseif detect.rar then
-			os.execute("7z e "..archive.." "..cur_page.." "..next_page)
+			os.execute("7z x "..archive.." "..cur_page.." "..next_page)
 		elseif detect.tar then
 			os.execute("tar -xf "..archive.." "..cur_page.." "..next_page)
 		elseif detect.zip then
