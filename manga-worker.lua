@@ -6,6 +6,7 @@ local detect = {
 	archive = false,
 	p7zip = false,
 	rar = false,
+	rar_archive = false,
 	tar = false,
 	zip = false
 }
@@ -117,7 +118,11 @@ function create_stitches()
 			names = names.." "..name
 		end
 		if not file_exists(name) and width_check then
-			if detect.archive then
+			if detect.rar_archive then
+				local archive = string.gsub(root, ".*/", "")
+				archive = string.gsub(archive, "|.*", "")
+				os.execute("7z x "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
+			elseif detect.archive then
 				local archive = string.gsub(root, ".*/", "")
 				if detect.p7zip then
 					os.execute("7z x "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
@@ -137,7 +142,7 @@ function create_stitches()
 			else
 				os.execute("convert "..cur_page.." "..next_page.." +append "..name.." &>/dev/null")
 			end
-			if detect.archive then
+			if detect.archive or detect.rar_archive then
 				os.execute("rm "..cur_page.." "..next_page.." &>/dev/null")
 			end
 		end
@@ -158,7 +163,20 @@ function get_dims(page)
 	local dims = {}
 	local p
 	local str
-	if detect.archive then
+	if detect.rar_archive then
+		local archive = string.gsub(root, ".*/", "")
+		archive = string.gsub(archive, "|.*", "")
+		p = io.popen("7z e -so "..archive.." "..page.." | identify -")
+		io.input(p)
+		str = io.read()
+		if str == nil then
+			dims = nil
+		else
+			local i, j = string.find(str, "[0-9]+x[0-9]+")
+			local sub = string.sub(str, i, j)
+			dims = str_split(sub, "x")
+		end
+	elseif detect.archive then
 		local archive = string.gsub(root, ".*/", "")
 		if detect.p7zip then
 			p = io.popen("7z e -so "..archive.." "..page.." | identify -")
@@ -194,7 +212,12 @@ function get_dims(page)
 end
 
 function get_filelist(path)
-	if detect.archive then
+	local filelist
+	if detect.rar_archive then
+		local archive = string.gsub(path, ".*/", "")
+		archive = string.gsub(archive, "|.*", "")
+		filelist = io.popen("7z l -slt "..archive.. " | grep 'Path =' | grep -v "..archive.." | sed 's/Path = //g'")
+	elseif detect.archive then
 		local archive = string.gsub(path, ".*/", "")
 		if detect.p7zip then
 			filelist = io.popen("7z l -slt "..archive.. " | grep 'Path =' | grep -v "..archive.." | sed 's/Path = //g'")
@@ -217,10 +240,13 @@ function remove_tmp_files()
 	end
 end
 
-mp.register_script_message("setup-worker", function(archive, p7zip, rar, tar, zip, i, base)
+mp.register_script_message("setup-worker", function(archive, rar_archive, p7zip, rar, tar, zip, i, base)
 	read_options(opts, "manga-reader")
 	if archive == "true" then
 		detect.archive = true
+	end
+	if rar_archive == "true" then
+		detect.rar_archive = true
 	end
 	if p7zip == "true" then
 		detect.p7zip = true

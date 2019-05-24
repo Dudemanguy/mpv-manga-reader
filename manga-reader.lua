@@ -7,6 +7,7 @@ local detect = {
 	init = false,
 	p7zip = false,
 	rar = false,
+	rar_archive = false,
 	tar = false,
 	zip = false,
 }
@@ -31,6 +32,14 @@ local workers = {}
 
 function check_archive(path)
 	if string.find(path, "archive://") == nil then
+		return false
+	else
+		return true
+	end
+end
+
+function check_rar_archive(path)
+	if string.find(path, "rar://") == nil then
 		return false
 	else
 		return true
@@ -183,7 +192,11 @@ end
 
 function get_filelist(path)
 	local filelist
-	if detect.archive then
+	if detect.rar_archive then
+		local archive = string.gsub(path, ".*/", "")
+		archive = string.gsub(archive, "|.*", "")
+		filelist = io.popen("7z l -slt "..archive.. " | grep 'Path =' | grep -v "..archive.." | sed 's/Path = //g'")
+	elseif detect.archive then
 		local archive = string.gsub(path, ".*/", "")
 		if detect.p7zip then
 			filelist = io.popen("7z l -slt "..archive.. " | grep 'Path =' | grep -v "..archive.." | sed 's/Path = //g'")
@@ -202,7 +215,10 @@ end
 
 function get_root(path)
 	local root
-	if detect.archive then
+	if detect.rar_archive then
+		root = string.gsub(path, "|.*", "")
+		root = escape_special_characters(root)
+	elseif detect.archive then
 		root = string.gsub(path, "|.*", "")
 		root = escape_special_characters(root)
 	else
@@ -226,7 +242,20 @@ function get_dims(page)
 	local dims = {}
 	local p
 	local str
-	if detect.archive then
+	if detect.rar_archive then
+		local archive = string.gsub(root, ".*/", "")
+		archive = string.gsub(archive, "|.*", "")
+		p = io.popen("7z e -so "..archive.." "..page.." | identify -")
+		io.input(p)
+		str = io.read()
+		if str == nil then
+			dims = nil
+		else
+			local i, j = string.find(str, "[0-9]+x[0-9]+")
+			local sub = string.sub(str, i, j)
+			dims = str_split(sub, "x")
+		end
+	elseif detect.archive then
 		local archive = string.gsub(root, ".*/", "")
 		if detect.p7zip then
 			p = io.popen("7z e -so "..archive.." "..page.." | identify -")
@@ -274,7 +303,11 @@ function double_page()
 	else
 		names = names.." "..name
 	end
-	if detect.archive then
+	if detect.rar_archive then
+		local archive = string.gsub(root, ".*/", "")
+		archive = string.gsub(archive, "|.*", "")
+		os.execute("7z x "..archive.." "..cur_page.." "..next_page)
+	elseif detect.archive then
 		local archive = string.gsub(root, ".*/", "")
 		if detect.p7zip then
 			os.execute("7z x "..archive.." "..cur_page.." "..next_page)
@@ -294,7 +327,7 @@ function double_page()
 	else
 		os.execute("convert "..cur_page.." "..next_page.." +append "..name)
 	end
-	if detect.archive then
+	if detect.archive or detect.rar_archive then
 		os.execute("rm "..cur_page.." "..next_page)
 	end
 	mp.commandv("loadfile", name, "replace")
@@ -302,7 +335,12 @@ end
 
 function single_page()
 	local page = filearray[index]
-	if detect.archive then
+	if detect.rar_archive then
+		local noescaperoot = string.gsub(root, "\\", "")
+		local noescapepage = string.gsub(page, "\\", "")
+		local switchslash = string.gsub(noescapepage, "/", "\\")
+		mp.commandv("loadfile", noescaperoot.."|"..switchslash, "replace")
+	elseif detect.archive then
 		local noescaperoot = string.gsub(root, "\\", "")
 		local noescapepage = string.gsub(page, "\\", "")
 		mp.commandv("loadfile", noescaperoot.."|"..noescapepage, "replace")
@@ -423,7 +461,7 @@ function remove_tmp_files()
 	if names ~= nil then
 		os.execute("rm "..names.." &>/dev/null")
 	end
-	if detect.archive and not detect.err then
+	if (detect.archive or detect.rar_archive) and not detect.err then
 		if utils.file_info(dir) then
 			dir = escape_special_characters(dir)
 			os.execute("rm -r "..dir.." &>/dev/null")
@@ -435,7 +473,7 @@ function remove_tmp_files_no_shutdown()
 	if names ~= nil then
 		os.execute("rm "..names.." &>/dev/null")
 	end
-	if detect.archive and not detect.err then
+	if (detect.archive or detect.rar_archive) and not detect.err then
 		if utils.file_info(dir) then
 			dir = escape_special_characters(dir)
 			os.execute("rm -r "..dir.." &>/dev/null")
@@ -449,8 +487,8 @@ function setup_workers(workers)
 		local name = strip_file_ext(workers[i])
 		name = string.gsub(name, "-", "_")
 		mp.commandv("script-message-to", name, "setup-worker", tostring(detect.archive), 
-                    tostring(detect.p7zip), tostring(detect.rar), tostring(detect.tar),
-                    tostring(detect.zip), tostring(i), root)
+                    tostring(detect.rar_archive), tostring(detect.p7zip), tostring(detect.rar),
+					tostring(detect.tar), tostring(detect.zip), tostring(i), root)
 		i = i + 1
 	end
 end
@@ -536,9 +574,17 @@ function start_manga_reader()
 		i = i + 1
 	end
 	local path = mp.get_property("path")
-	detect.archive = check_archive(path)
+	detect.rar_archive = check_rar_archive(path)
+	if not detect.rar_archive then
+		detect.archive = check_archive(path)
+	end
 	root = get_root(path)
-	if detect.archive then
+	if detect.rar_archive then
+		dir = string.gsub(path, ".*|", "")
+		dir = string.gsub(dir, "\\.*", "")
+		init_arg = string.gsub(root, ".*/", "")
+		init_arg = string.gsub(init_arg, "\\", "")
+	elseif detect.archive then
 		local type_found = check_archive_type()
 		if not type_found then
 			detect.err = true
