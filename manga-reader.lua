@@ -17,6 +17,7 @@ local opts = {
 	manga = true,
 	offset = 20,
 	pages = 10,
+	skip_size = 10,
 	worker = true,
 }
 local dir
@@ -416,6 +417,14 @@ function prev_single_page()
 	change_page(-1)
 end
 
+function skip_forward()
+	change_page(opts.skip_size)
+end
+
+function skip_backward()
+	change_page(-opts.skip_size)
+end
+
 function first_page()
 	index = 0
 	change_page(0)
@@ -436,11 +445,15 @@ function set_keys()
 		mp.add_forced_key_binding("RIGHT", "prev-page", prev_page)
 		mp.add_forced_key_binding("Shift+LEFT", "next-single-page", next_single_page)
 		mp.add_forced_key_binding("Shift+RIGHT", "prev-single-page", prev_single_page)
+		mp.add_forced_key_binding("Ctrl+LEFT", "skip-forward", skip_forward)
+		mp.add_forced_key_binding("Ctrl+RIGHT", "skip-backward", skip_backward)
 	else
 		mp.add_forced_key_binding("RIGHT", "next-page", next_page)
 		mp.add_forced_key_binding("LEFT", "prev-page", prev_page)
 		mp.add_forced_key_binding("Shift+RIGHT", "next-single-page", next_single_page)
 		mp.add_forced_key_binding("Shift+LEFT", "prev-single-page", prev_single_page)
+		mp.add_forced_key_binding("Ctrl+RIGHT", "skip-forward", skip_forward)
+		mp.add_forced_key_binding("Ctrl+LEFT", "skip-backward", skip_backward)
 	end
 	mp.add_forced_key_binding("HOME", "first-page", first_page)
 	mp.add_forced_key_binding("END", "last-page", last_page)

@@ -32,6 +32,8 @@ By default, starting mpv-manga-reader is bound to `y`. It will start in manga mo
 * prev-page: `RIGHT`
 * next-single-page: `Shift+LEFT`
 * prev-single-page: `Shift+RIGHT`
+* skip-forward: `Ctrl+LEFT`
+* skip-backward: `Ctrl+RIGHT`
 * first-page: `HOME`
 * last-page: `END`
 
@@ -58,6 +60,9 @@ Defaults to `20`. This is only used if there are multiple copies of manga-worker
 
 ``pages``\
 Defaults to `10`. Tells the manga-worker scripts how many pages to stitch together.
+
+``skip_size``\
+Defaults to `10`. This is the interval used by the `skip-forward` and `skip-backward` functions.
 
 ``worker``\
 Defaults to `yes`. Tells the manga-reader to use manga-worker scripts if they are available.

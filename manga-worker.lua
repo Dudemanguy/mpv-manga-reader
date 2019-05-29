@@ -16,6 +16,7 @@ local opts = {
 	manga = true,
 	offset = 20,
 	pages = 10,
+	skip_size = 10,
 	worker = true,
 }
 local index = 0
