@@ -25,6 +25,8 @@ local filearray = {}
 local filedims = {}
 local index = 0
 local init_arg
+local input = ""
+local jump = false
 local length
 local names = nil
 local root
@@ -439,6 +441,122 @@ function last_page()
 	change_page(0)
 end
 
+function one_handler()
+	input = input.."1"
+	mp.osd_message("Jump to page "..input, 100000)
+end
+
+function two_handler()
+	input = input.."2"
+	mp.osd_message("Jump to page "..input, 100000)
+end
+
+function three_handler()
+	input = input.."3"
+	mp.osd_message("Jump to page "..input, 100000)
+end
+
+function four_handler()
+	input = input.."4"
+	mp.osd_message("Jump to page "..input, 100000)
+end
+
+function five_handler()
+	input = input.."5"
+	mp.osd_message("Jump to page "..input, 100000)
+end
+
+function six_handler()
+	input = input.."6"
+	mp.osd_message("Jump to page "..input, 100000)
+end
+
+function seven_handler()
+	input = input.."7"
+	mp.osd_message("Jump to page "..input, 100000)
+end
+
+function eight_handler()
+	input = input.."8"
+	mp.osd_message("Jump to page "..input, 100000)
+end
+
+function nine_handler()
+	input = input.."9"
+	mp.osd_message("Jump to page "..input, 100000)
+end
+
+function zero_handler()
+	input = input.."0"
+	mp.osd_message("Jump to page "..input, 100000)
+end
+
+function bs_handler()
+	input = input:sub(1, -2)
+	mp.osd_message("Jump to page "..input, 100000)
+end
+
+function jump_page_go()
+	local dest = tonumber(input) - 1
+	input = ""
+	mp.osd_message("")
+	if (dest > length - 1) or (dest < 0) then
+		mp.osd_message("Specified page does not exist")
+	else
+		local amount = dest - index
+		change_page(amount)
+	end
+	remove_jump_keys()
+	jump = false
+end
+
+function remove_jump_keys()
+	mp.remove_key_binding("one-handler")
+	mp.remove_key_binding("two-handler")
+	mp.remove_key_binding("three-handler")
+	mp.remove_key_binding("four-handler")
+	mp.remove_key_binding("five-handler")
+	mp.remove_key_binding("six-handler")
+	mp.remove_key_binding("seven-handler")
+	mp.remove_key_binding("eight-handler")
+	mp.remove_key_binding("nine-handler")
+	mp.remove_key_binding("zero-handler")
+	mp.remove_key_binding("bs-handler")
+	mp.remove_key_binding("jump-page-go")
+	mp.remove_key_binding("jump-page-quit")
+end
+
+function jump_page_quit()
+	jump = false
+	input = ""
+	remove_jump_keys()
+	mp.osd_message("")
+end
+
+function set_jump_keys()
+	mp.add_forced_key_binding("1", "one-handler", one_handler)
+	mp.add_forced_key_binding("2", "two-handler", two_handler)
+	mp.add_forced_key_binding("3", "three-handler", three_handler)
+	mp.add_forced_key_binding("4", "four-handler", four_handler)
+	mp.add_forced_key_binding("5", "five-handler", five_handler)
+	mp.add_forced_key_binding("6", "six-handler", six_handler)
+	mp.add_forced_key_binding("7", "seven-handler", seven_handler)
+	mp.add_forced_key_binding("8", "eight-handler", eight_handler)
+	mp.add_forced_key_binding("9", "nine-handler", nine_handler)
+	mp.add_forced_key_binding("0", "zero-handler", zero_handler)
+	mp.add_forced_key_binding("BS", "bs-handler", bs_handler)
+	mp.add_forced_key_binding("ENTER", "jump-page-go", jump_page_go)
+	mp.add_forced_key_binding("ctrl+[", "jump-page-quit", jump_page_quit)
+end
+
+function jump_page_mode()
+	if jump == false then
+		jump = true
+		set_jump_keys()
+		mp.osd_message("Jump to page ", 100000)
+	end
+end
+
 function set_keys()
 	if opts.manga then
 		mp.add_forced_key_binding("LEFT", "next-page", next_page)
@@ -457,6 +575,7 @@ function set_keys()
 	end
 	mp.add_forced_key_binding("HOME", "first-page", first_page)
 	mp.add_forced_key_binding("END", "last-page", last_page)
+	mp.add_forced_key_binding("/", "jump-page-mode", jump_page_mode)
 end
 
 function startup_msg()
@@ -560,8 +679,11 @@ function close_manga_reader()
 		mp.remove_key_binding("prev-page")
 		mp.remove_key_binding("next-single-page")
 		mp.remove_key_binding("prev-single-page")
+		mp.remove_key_binding("skip-forward")
+		mp.remove_key_binding("skip-backward")
 		mp.remove_key_binding("first-page")
 		mp.remove_key_binding("last-page")
+		mp.remove_key_binding("jump-page-mode")
 	end
 	if not detect.err and detect.image then
 		mp.commandv("loadfile", init_arg, "replace")

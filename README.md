@@ -36,9 +36,16 @@ By default, starting mpv-manga-reader is bound to `y`. It will start in manga mo
 * skip-backward: `Ctrl+RIGHT`
 * first-page: `HOME`
 * last-page: `END`
+* jump-page-mode: `/`
+* jump-page-go: `ENTER`
+* jump-page-quit: `ctrl+[`
 
-These bindings can all be changed in input.conf in the usual way (i.e. `key script-message function-name`). If manga mode is false, then the direction keys of the `next-page` and `prev-page` functions are reversed (i.e. `next-page` becomes `RIGHT` and so on).
+Keybindings can all be changed in input.conf in the usual way (i.e. `key script-message function-name`). If manga mode is false, then the direction keys of the `next-page` and `prev-page` functions are reversed (i.e. `next-page` becomes `RIGHT` and so on).
 
+## jump-page
+The `jump-page` functions work a little bit differently than the rest of the reader. Pressing `jump-page-mode` will do some key rebinds and then prompt the user with a message asking which page to move to. Simply press any combination of numbers followed by `jump-page-go` to move to the desired page. If the entered number is out of range, a message will be displayed. Either way, `jump-page-mode` will be ended. You can use `jump-page-quit` to quit `jump-page-mode` at any time.
+
+## manga-worker
 Another script that may be of interest is the `manga-worker.lua` script. Since stitching images together (for double page mode) can be slow, the manga-worker script does this for you in the background on a separate thread (thanks to mpv automatically multithreading scripts). Simply place it in your scripts directory, and it will start when the manga-reader is started. By default, the script will stitch together 10 pages ahead of the currently loaded file. Workers can be toggled off and on with the `toggle-worker` command.
 
 You can also put multiple copies of the manga-worker script in the directory. The script will internally use an offset value (the default is 20) and extra copies of manga-worker will start stitching images together based on that offset value. The only requirement is that extra copies of `manga-worker.lua` need to have `manga-worker` in their name (i.e. `manga-worker1.lua` is valid). Each script runs on its own thread, so don't put too many copies of the worker script or else your CPU and RAM will probably run into some issues.
