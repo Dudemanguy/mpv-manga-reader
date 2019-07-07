@@ -319,7 +319,7 @@ function double_page()
 		elseif detect.tar then
 			os.execute("tar -xf "..archive.." "..cur_page.." "..next_page)
 		elseif detect.zip then
-			os.execute("unzip "..archive.." "..cur_page.." "..next_page)
+			os.execute("unzip -o "..archive.." "..cur_page.." "..next_page)
 		end
 	else
 		cur_page = utils.join_path(root, cur_page)

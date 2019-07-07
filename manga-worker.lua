@@ -132,7 +132,7 @@ function create_stitches()
 				elseif detect.tar then
 					os.execute("tar -xf "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
 				elseif detect.zip then
-					os.execute("unzip "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
+					os.execute("unzip -o "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
 				end
 			else
 				cur_page = utils.join_path(root, filearray[i])
