@@ -12,6 +12,7 @@ local detect = {
 }
 local opts = {
 	aspect_ratio = 16/9,
+	auto_start = false,
 	double = false,
 	manga = true,
 	offset = 20,

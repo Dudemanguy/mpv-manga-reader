@@ -13,6 +13,7 @@ local detect = {
 }
 local opts = {
 	aspect_ratio = 16/9,
+	auto_start = false,
 	double = false,
 	manga = true,
 	offset = 20,
@@ -693,7 +694,6 @@ function close_manga_reader()
 end
 
 function start_manga_reader()
-	read_options(opts, "manga-reader")
 	local home = io.popen("echo $HOME")
 	io.input(home)
 	local home_dir = io.read()
@@ -709,6 +709,9 @@ function start_manga_reader()
 		i = i + 1
 	end
 	local path = mp.get_property("path")
+	if (opts.auto_start) then
+		mp.unregister_event(toggle_reader)
+	end
 	detect.rar_archive = check_rar_archive(path)
 	if not detect.rar_archive then
 		detect.archive = check_archive(path)
@@ -777,3 +780,7 @@ end
 
 mp.register_event("shutdown", remove_tmp_files)
 mp.add_key_binding("y", "toggle-manga-reader", toggle_reader)
+read_options(opts, "manga-reader")
+if opts.auto_start then
+	mp.register_event("file-loaded", toggle_reader)
+end

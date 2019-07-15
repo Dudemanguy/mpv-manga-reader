@@ -56,6 +56,9 @@ You can also put multiple copies of the manga-worker script in the directory. Th
 ``aspect_ratio``\
 Defaults to `16/9`. There's not a good way to detect the monitor size, but using the aspect ratio of the screen it can be calculated whether or not images are too wide to be stitched together in double pages. Note that you need to provide the exact number and not a ratio in the configuration file. So use `1.6` not `16/10`.
 
+``auto_start``\
+Defaults to `no`. Automatically start the reader if valid images are detected.
+
 ``double``\
 Defaults to `no`. Tells the manga reader whether or not to start in double page mode.
 
