@@ -143,7 +143,7 @@ end
 function check_image()
 	audio = mp.get_property("audio-params")
 	frame_count = mp.get_property("estimated-frame-count")
-	if audio == nil and (frame_count == "1" or frame_count == "0" or frame_count == nil) then
+	if audio == nil and (frame_count == "1" or frame_count == "0") then
 		return true
 	else
 		return false
