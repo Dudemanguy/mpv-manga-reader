@@ -24,6 +24,7 @@ local opts = {
 local dir
 local filearray = {}
 local filedims = {}
+local first_start = true
 local index = 0
 local init_arg
 local input = ""
@@ -585,8 +586,12 @@ function startup_msg()
 	elseif detect.archive and detect.err then
 		mp.osd_message("Archive type not supported")
 	else
-		mp.osd_message("Not an image")
+		if (not first_start and opts.auto_start) or 
+			(not opts.auto_start) then
+			mp.osd_message("Not an image")
+		end
 	end
+	first_start = false
 end
 
 function remove_tmp_files()
