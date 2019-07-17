@@ -157,6 +157,7 @@ function escape_special_characters(str)
 	str = string.gsub(str, "%)", "\\)")
 	str = string.gsub(str, "%[", "\\[")
 	str = string.gsub(str, "%]", "\\]")
+	str = string.gsub(str, '%"', '\\"')
 	return str
 end
 
