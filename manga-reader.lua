@@ -228,7 +228,10 @@ function get_root(path)
 		root = string.gsub(path, "|.*", "")
 		root = escape_special_characters(root)
 	else
-		root = string.gsub(path, "/.*", "")
+		root,match = string.gsub(path, "/.*", "")
+		if match == 0 then
+			root = ""
+		end
 		root = escape_special_characters(root)
 	end
 	return root
@@ -723,6 +726,10 @@ function start_manga_reader()
 		detect.archive = check_archive(path)
 	end
 	root = get_root(path)
+	if root == "" then
+		detect.err = true
+		return
+	end
 	if detect.rar_archive then
 		dir = string.gsub(path, ".*|", "")
 		dir = string.gsub(dir, "\\.*", "")
