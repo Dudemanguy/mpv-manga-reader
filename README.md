@@ -13,6 +13,7 @@ mpv-manga-reader obviously depends on mpv. Using mpv built with libarchive suppo
 * `ls`
 * `rm`
 * `sed`
+* `sleep`
 * `sort`
 * `tar`
 * `zip` and `zipinfo`
