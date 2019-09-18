@@ -80,3 +80,6 @@ Defaults to `yes`. Tells the manga-reader to use manga-worker scripts if they ar
 
 ## Notes
 Quitting will call the `close_manga_reader` function and remove extraneous files and folders created from archive extraction and/or imagemagick.
+
+## License
+GPLv3
