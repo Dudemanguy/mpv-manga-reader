@@ -16,7 +16,6 @@ local opts = {
 	auto_start = false,
 	double = false,
 	manga = true,
-	offset = 20,
 	pages = 10,
 	skip_size = 10,
 	worker = true,
@@ -31,9 +30,11 @@ local input = ""
 local jump = false
 local length
 local names = nil
+local stitched_names = {}
 local root
 local valid_width
 local workers = {}
+local worker_length = 0
 
 function check_archive(path)
 	if string.find(path, "archive://") == nil then
@@ -362,16 +363,6 @@ function single_page()
 	end
 end
 
-function update_worker_index()
-	local i = 1
-	while workers[i] do
-		local name = strip_file_ext(workers[i])
-		name = string.gsub(name, "-", "_")
-		mp.commandv("script-message-to", name, "worker-index", tostring(index))
-		i = i + 1
-	end
-end
-
 function change_page(amount)
 	index = index + amount
 	if index < 0 then
@@ -399,7 +390,7 @@ function change_page(amount)
 		single_page()
 	end
 	if opts.worker then
-		update_worker_index()
+		update_worker_index(workers)
 	end
 end
 
@@ -601,7 +592,6 @@ function startup_msg()
 end
 
 function remove_tmp_files()
-	close_manga_reader()
 	if names ~= nil then
 		os.execute("rm "..names.." &>/dev/null")
 	end
@@ -625,25 +615,44 @@ function remove_tmp_files_no_shutdown()
 	end
 end
 
-function setup_workers(workers)
+function init_workers(workers)
 	local i = 1
 	while workers[i] do
 		local name = strip_file_ext(workers[i])
 		name = string.gsub(name, "-", "_")
-		mp.commandv("script-message-to", name, "setup-worker", tostring(detect.archive), 
+		mp.commandv("script-message-to", name, "init-worker", tostring(detect.archive), 
                     tostring(detect.rar_archive), tostring(detect.p7zip), tostring(detect.rar),
-					tostring(detect.tar), tostring(detect.zip), tostring(i), root)
+					tostring(detect.tar), tostring(detect.zip), root)
 		i = i + 1
 	end
 end
 
-function update_worker_bools()
+function queue_workers(workers)
+	for key,value in pairs(stitched_names) do
+		worker_index = math.fmod(key, worker_length) + 1
+		local name = strip_file_ext(workers[worker_index])
+		name = string.gsub(name, "-", "_")
+		mp.commandv("script-message-to", name, "queue-worker", tostring(value), root)
+	end
+end
+
+function update_worker_bools(workers)
 	local i = 1
 	while workers[i] do
 		local name = strip_file_ext(workers[i])
 		name = string.gsub(name, "-", "_")
 		mp.commandv("script-message-to", name, "update-bools", tostring(opts.manga), tostring(opts.worker))
 		i = i +1
+	end
+end
+
+function update_worker_index(workers)
+	local i = 1
+	while workers[i] do
+		local name = strip_file_ext(workers[i])
+		name = string.gsub(name, "-", "_")
+		mp.commandv("script-message-to", name, "worker-index", tostring(index))
+		i = i + 1
 	end
 end
 
@@ -669,20 +678,27 @@ function toggle_manga_mode()
 	end
 	set_keys()
 	remove_tmp_files_no_shutdown()
-	update_worker_bools()
+	if workers[1] then
+		update_worker_bools(workers)
+	end
 	names = nil
 	change_page(0)
 end
 
 function toggle_worker()
-	if opts.worker then
+	if opts.worker and workers[1] then
 		opts.worker = false
 		mp.osd_message("Stopping Workers")
+	elseif not workers [1] then
+		opts.worker = false
+		mp.osd_message("No workers found. Nothing to toggle!")
 	else
 		opts.worker = true
 		mp.osd_message("Starting Workers")
 	end
-	update_worker_bools()
+	if workers[1] then
+		update_worker_bools(workers)
+	end
 end
 
 function close_manga_reader()
@@ -701,7 +717,9 @@ function close_manga_reader()
 		mp.commandv("loadfile", init_arg, "replace")
 	end
 	opts.worker = false
-	update_worker_bools()
+	if workers[1] then
+		update_worker_bools(workers)
+	end
 end
 
 function start_manga_reader()
@@ -716,6 +734,7 @@ function start_manga_reader()
 	while scripts[i] do
 		if string.find(scripts[i], "manga-worker", 0, true) then
 			workers[i] = scripts[i]
+			worker_length = worker_length + 1
 		end
 		i = i + 1
 	end
@@ -764,10 +783,14 @@ function start_manga_reader()
 		end
 	end
 	length = i
+	for i=0,length-2 do
+		stitched_names[i] = generate_name(filearray[i], filearray[i+1])
+	end
 	filelist:close()
 	set_keys()
 	if workers[1] then
-		setup_workers(workers)
+		init_workers(workers)
+		queue_workers(workers)
 	end
 	mp.set_property_bool("osc", false)
 	mp.set_property_bool("idle", true)
@@ -793,7 +816,12 @@ function toggle_reader()
 	end
 end
 
-mp.register_event("shutdown", remove_tmp_files)
+function mpv_close()
+	close_manga_reader()
+	remove_tmp_files()
+end
+
+mp.register_event("shutdown", mpv_close)
 mp.add_key_binding("y", "toggle-manga-reader", toggle_reader)
 read_options(opts, "manga-reader")
 if opts.auto_start then

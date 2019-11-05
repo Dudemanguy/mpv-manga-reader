@@ -15,7 +15,6 @@ local opts = {
 	auto_start = false,
 	double = false,
 	manga = true,
-	offset = 20,
 	pages = 10,
 	skip_size = 10,
 	worker = true,
@@ -24,7 +23,7 @@ local index = 0
 local length
 local names = nil
 local root
-local worker_num
+local stitched_names = {}
 
 function check_aspect_ratio(a, b)
 	local m = a[0]+b[0]
@@ -97,9 +96,17 @@ function generate_name(cur_page, next_page)
 	return name
 end
 
+function valid_stitched_name(name)
+	for i=0,length-1 do
+		if name == stitched_names[i] then
+			return true
+		end
+	end
+	return false
+end
+
 function create_stitches()
 	local start = index
-	start = opts.offset*worker_num + start
 	if start + opts.pages > length then
 		last = length - 2
 	else
@@ -116,38 +123,40 @@ function create_stitches()
 		end
 		local width_check = check_aspect_ratio(filedims[i], filedims[i+1])
 		local name = generate_name(filearray[i], filearray[i+1])
-		if names == nil then
-			names = name
-		else
-			names = names.." "..name
-		end
-		if not file_exists(name) and width_check then
-			if detect.rar_archive then
-				local archive = string.gsub(root, ".*/", "")
-				archive = string.gsub(archive, "|.*", "")
-				os.execute("7z x "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
-			elseif detect.archive then
-				local archive = string.gsub(root, ".*/", "")
-				if detect.p7zip then
+		if valid_stitched_name(name) then
+			if names == nil then
+				names = name
+			else
+				names = names.." "..name
+			end
+			if not file_exists(name) and width_check then
+				if detect.rar_archive then
+					local archive = string.gsub(root, ".*/", "")
+					archive = string.gsub(archive, "|.*", "")
 					os.execute("7z x "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
-				elseif detect.rar then
-					os.execute("7z x "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
-				elseif detect.tar then
-					os.execute("tar -xf "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
-				elseif detect.zip then
-					os.execute("unzip -o "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
+				elseif detect.archive then
+					local archive = string.gsub(root, ".*/", "")
+					if detect.p7zip then
+						os.execute("7z x "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
+					elseif detect.rar then
+						os.execute("7z x "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
+					elseif detect.tar then
+						os.execute("tar -xf "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
+					elseif detect.zip then
+						os.execute("unzip -o "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
+					end
+				else
+					cur_page = utils.join_path(root, filearray[i])
+					next_page = utils.join_path(root, filearray[i+1])
 				end
-			else
-				cur_page = utils.join_path(root, filearray[i])
-				next_page = utils.join_path(root, filearray[i+1])
-			end
-			if opts.manga then
-				os.execute("convert "..next_page.." "..cur_page.." +append "..name.." &>/dev/null")
-			else
-				os.execute("convert "..cur_page.." "..next_page.." +append "..name.." &>/dev/null")
-			end
-			if detect.archive or detect.rar_archive then
-				os.execute("rm "..cur_page.." "..next_page.." &>/dev/null")
+				if opts.manga then
+					os.execute("convert "..next_page.." "..cur_page.." +append "..name.." &>/dev/null")
+				else
+					os.execute("convert "..cur_page.." "..next_page.." +append "..name.." &>/dev/null")
+				end
+				if detect.archive or detect.rar_archive then
+					os.execute("rm "..cur_page.." "..next_page.." &>/dev/null")
+				end
 			end
 		end
 	end
@@ -244,7 +253,7 @@ function remove_tmp_files()
 	end
 end
 
-mp.register_script_message("setup-worker", function(archive, rar_archive, p7zip, rar, tar, zip, i, base)
+mp.register_script_message("init-worker", function(archive, rar_archive, p7zip, rar, tar, zip, base)
 	read_options(opts, "manga-reader")
 	if archive == "true" then
 		detect.archive = true
@@ -265,7 +274,6 @@ mp.register_script_message("setup-worker", function(archive, rar_archive, p7zip,
 		detect.zip = true
 	end
 	root = base
-	worker_num = tonumber(i) - 1
 	local filelist = get_filelist(root)
 	local i = 0
 	for filename in filelist:lines() do
@@ -279,11 +287,16 @@ mp.register_script_message("setup-worker", function(archive, rar_archive, p7zip,
 	end
 	filelist:close()
 	length = i
-	mp.register_event("file-loaded", create_stitches)
 	mp.register_event("shutdown", remove_tmp_files)
 end)
 
+mp.register_script_message("queue-worker", function(value)
+	table.insert(stitched_names, value)
+	mp.register_event("file-loaded", create_stitches)
+end)
+
 mp.register_script_message("update-bools", function(manga, worker)
+	print("update")
 	local str1 = manga
 	local str2 = worker
 	local prev_manga = opts.manga

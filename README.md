@@ -49,7 +49,7 @@ The `jump-page` functions work a little bit differently than the rest of the rea
 ## manga-worker
 Another script that may be of interest is the `manga-worker.lua` script. Since stitching images together (for double page mode) can be slow, the manga-worker script does this for you in the background on a separate thread (thanks to mpv automatically multithreading scripts). Simply place it in your scripts directory, and it will start when the manga-reader is started. By default, the script will stitch together 10 pages ahead of the currently loaded file. Workers can be toggled off and on with the `toggle-worker` command.
 
-You can also put multiple copies of the manga-worker script in the directory. The script will internally use an offset value (the default is 20) and extra copies of manga-worker will start stitching images together based on that offset value. The only requirement is that extra copies of `manga-worker.lua` need to have `manga-worker` in their name (i.e. `manga-worker1.lua` is valid). Each script runs on its own thread, so don't put too many copies of the worker script or else your CPU and RAM will probably run into some issues.
+You can also put multiple copies of the manga-worker script in the directory. Each script will stitch together the appropriate subset of the total amount of requested stitched pages (i.e. stitching N pages with x worker scripts means that each script stitches N/x pages). The only requirement for extra manga-worker scripts is that each copy needs to have `manga-worker` in their name (i.e. `manga-worker1.lua` is valid). Each script runs on its own thread, so don't put too many copies of the worker script or else your CPU and RAM will probably run into some issues.
 
 ## Configuration
 `manga-reader.lua` and all copies of `manga-worker.lua` read configurations from `manga-reader.conf` in your `script-opts` directory. The format for the file is `foo=value`. Here are the available options and their defaults.
@@ -65,9 +65,6 @@ Defaults to `no`. Tells the manga reader whether or not to start in double page 
 
 ``manga``\
 Defaults to `yes`. Tells the manga reader whether or not to start in manga mode (i.e. read right-to-left or left-to-right).
-
-``offset``\
-Defaults to `20`. This is only used if there are multiple copies of manga-worker scripts. This is the difference between where multiple copies of the manga worker script will start stitching images together. With two manga-worker scripts and the default offset of 20, one script will start at page 1 and the other at page 21.
 
 ``pages``\
 Defaults to `10`. Tells the manga-worker scripts how many pages to stitch together.
