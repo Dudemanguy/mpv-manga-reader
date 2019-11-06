@@ -253,6 +253,8 @@ function remove_tmp_files()
 	end
 end
 
+mp.register_event("shutdown", remove_tmp_files)
+
 mp.register_script_message("init-worker", function(archive, rar_archive, p7zip, rar, tar, zip, base)
 	read_options(opts, "manga-reader")
 	if archive == "true" then
@@ -287,7 +289,6 @@ mp.register_script_message("init-worker", function(archive, rar_archive, p7zip, 
 	end
 	filelist:close()
 	length = i
-	mp.register_event("shutdown", remove_tmp_files)
 end)
 
 mp.register_script_message("queue-worker", function(value)
