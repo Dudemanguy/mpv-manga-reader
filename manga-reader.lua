@@ -34,6 +34,7 @@ local stitched_names = {}
 local root
 local valid_width
 local workers = {}
+local worker_init_bool = true
 local worker_length = 0
 
 function check_archive(path)
@@ -143,7 +144,6 @@ function check_archive_type()
 end
 
 function check_image()
-	os.execute("sleep 1")
 	audio = mp.get_property("audio-params")
 	frame_count = mp.get_property("estimated-frame-count")
 	if audio == nil and (frame_count == "1" or frame_count == "0") then
@@ -595,11 +595,9 @@ function remove_tmp_files()
 	if names ~= nil then
 		os.execute("rm "..names.." &>/dev/null")
 	end
-	if (detect.archive or detect.rar_archive) and not detect.err then
-		if utils.file_info(dir) then
-			dir = escape_special_characters(dir)
-			os.execute("rm -r "..dir.." &>/dev/null")
-		end
+	if dir ~= nil and utils.file_info(dir) then
+		dir = escape_special_characters(dir)
+		os.execute("rm -r "..dir.." &>/dev/null")
 	end
 end
 
@@ -607,11 +605,9 @@ function remove_tmp_files_no_shutdown()
 	if names ~= nil then
 		os.execute("rm "..names.." &>/dev/null")
 	end
-	if (detect.archive or detect.rar_archive) and not detect.err then
-		if utils.file_info(dir) then
-			dir = escape_special_characters(dir)
-			os.execute("rm -r "..dir.." &>/dev/null")
-		end
+	if dir ~= nil and utils.file_info(dir) then
+		dir = escape_special_characters(dir)
+		os.execute("rm -r "..dir.." &>/dev/null")
 	end
 end
 
@@ -701,28 +697,7 @@ function toggle_worker()
 	end
 end
 
-function close_manga_reader()
-	if detect.init then
-		mp.remove_key_binding("next-page")
-		mp.remove_key_binding("prev-page")
-		mp.remove_key_binding("next-single-page")
-		mp.remove_key_binding("prev-single-page")
-		mp.remove_key_binding("skip-forward")
-		mp.remove_key_binding("skip-backward")
-		mp.remove_key_binding("first-page")
-		mp.remove_key_binding("last-page")
-		mp.remove_key_binding("jump-page-mode")
-	end
-	if not detect.err and detect.image then
-		mp.commandv("loadfile", init_arg, "replace")
-	end
-	opts.worker = false
-	if workers[1] then
-		update_worker_bools(workers)
-	end
-end
-
-function start_manga_reader()
+function setup_init_values()
 	local home = io.popen("echo $HOME")
 	io.input(home)
 	local home_dir = io.read()
@@ -738,6 +713,7 @@ function start_manga_reader()
 		end
 		i = i + 1
 	end
+	worker_init_bool = opts.worker
 	local path = mp.get_property("path")
 	if (opts.auto_start) then
 		mp.unregister_event(toggle_reader)
@@ -782,12 +758,41 @@ function start_manga_reader()
 			i = i + 1
 		end
 	end
+	filelist:close()
 	length = i
 	for i=0,length-2 do
 		stitched_names[i] = generate_name(filearray[i], filearray[i+1])
 	end
-	filelist:close()
+	mp.unregister_event(setup_init_values)
+end
+
+function close_manga_reader()
+	if detect.init then
+		mp.remove_key_binding("next-page")
+		mp.remove_key_binding("prev-page")
+		mp.remove_key_binding("next-single-page")
+		mp.remove_key_binding("prev-single-page")
+		mp.remove_key_binding("skip-forward")
+		mp.remove_key_binding("skip-backward")
+		mp.remove_key_binding("first-page")
+		mp.remove_key_binding("last-page")
+		mp.remove_key_binding("jump-page-mode")
+	end
+	if not detect.err and detect.image then
+		mp.commandv("loadfile", init_arg, "replace")
+	end
+	opts.worker = false
+	if workers[1] then
+		update_worker_bools(workers)
+	end
+end
+
+function start_manga_reader()
 	set_keys()
+	if worker_init_bool then
+		opts.worker = true
+	end
+	update_worker_bools(workers)
 	if workers[1] then
 		init_workers(workers)
 		queue_workers(workers)
@@ -821,6 +826,7 @@ function mpv_close()
 	remove_tmp_files()
 end
 
+mp.register_event("file-loaded", setup_init_values)
 mp.register_event("shutdown", mpv_close)
 mp.add_key_binding("y", "toggle-manga-reader", toggle_reader)
 read_options(opts, "manga-reader")

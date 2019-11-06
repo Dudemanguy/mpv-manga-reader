@@ -21,7 +21,6 @@ local opts = {
 }
 local index = 0
 local length
-local names = nil
 local root
 local stitched_names = {}
 
@@ -124,11 +123,6 @@ function create_stitches()
 		local width_check = check_aspect_ratio(filedims[i], filedims[i+1])
 		local name = generate_name(filearray[i], filearray[i+1])
 		if valid_stitched_name(name) then
-			if names == nil then
-				names = name
-			else
-				names = names.." "..name
-			end
 			if not file_exists(name) and width_check then
 				if detect.rar_archive then
 					local archive = string.gsub(root, ".*/", "")
@@ -248,8 +242,10 @@ function get_filelist(path)
 end
 
 function remove_tmp_files()
-	if names ~= nil then
-		os.execute("rm "..names.." &>/dev/null")
+	for i=0,length-1 do
+		if stitched_names[i] ~= nil then
+			os.execute("rm -f "..stitched_names[i].." &>/dev/null")
+		end
 	end
 end
 
@@ -297,7 +293,6 @@ mp.register_script_message("queue-worker", function(value)
 end)
 
 mp.register_script_message("update-bools", function(manga, worker)
-	print("update")
 	local str1 = manga
 	local str2 = worker
 	local prev_manga = opts.manga
