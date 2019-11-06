@@ -34,6 +34,7 @@ local stitched_names = {}
 local root
 local valid_width
 local workers = {}
+local worker_locks = {}
 local worker_init_bool = true
 local worker_length = 0
 
@@ -710,6 +711,10 @@ function setup_init_values()
 		if string.find(scripts[i], "manga-worker", 0, true) then
 			workers[i] = scripts[i]
 			worker_length = worker_length + 1
+			local name = strip_file_ext(workers[i])
+			name = string.gsub(name, "-", "_")
+			name = name..".lock"
+			worker_locks[i] = name
 		end
 		i = i + 1
 	end
@@ -806,6 +811,15 @@ function start_manga_reader()
 	change_page(0)
 end
 
+function wait_for_workers()
+	local i = 1
+	while workers[i] do
+		if not file_exists(worker_locks[i]) then
+			i = i + 1
+		end
+	end
+end
+
 function toggle_reader()
 	if detect.init then
 		close_manga_reader()
@@ -822,6 +836,7 @@ function toggle_reader()
 end
 
 function mpv_close()
+	wait_for_workers()
 	close_manga_reader()
 	remove_tmp_files()
 end

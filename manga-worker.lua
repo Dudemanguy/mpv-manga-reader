@@ -21,6 +21,7 @@ local opts = {
 }
 local index = 0
 local length
+local lock_name
 local root
 local stitched_names = {}
 
@@ -242,9 +243,12 @@ function get_filelist(path)
 end
 
 function remove_tmp_files()
-	for i=0,length-1 do
-		if stitched_names[i] ~= nil then
-			os.execute("rm -f "..stitched_names[i].." &>/dev/null")
+	os.execute("rm "..lock_name)
+	if length ~= nil then
+		for i=0,length-1 do
+			if stitched_names[i] ~= nil then
+				os.execute("rm -f "..stitched_names[i].." &>/dev/null")
+			end
 		end
 	end
 end
@@ -315,3 +319,7 @@ end)
 mp.register_script_message("worker-index", function(num)
 	index = tonumber(num)
 end)
+
+local script_name = mp.get_script_name()
+lock_name = script_name..".lock"
+os.execute("touch "..lock_name)
