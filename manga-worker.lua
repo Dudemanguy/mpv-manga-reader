@@ -114,7 +114,7 @@ function create_stitches()
 	else
 		last = start+opts.pages
 	end
-	for i=start,last-1 do
+	for i=start,last do
 		if not opts.worker then
 			break
 		end
