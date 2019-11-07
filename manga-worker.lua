@@ -255,7 +255,6 @@ function get_filelist(path)
 end
 
 function remove_tmp_files()
-	os.execute("rm "..worker_lock)
 	if length ~= nil then
 		for i=0,length-1 do
 			if stitched_names[i] ~= nil then
