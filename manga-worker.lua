@@ -291,8 +291,11 @@ mp.register_script_message("init-worker", function(archive, rar_archive, p7zip, 
 	length = i
 end)
 
-mp.register_script_message("queue-worker", function(value)
+mp.register_script_message("add-to-worker", function(value)
 	table.insert(stitched_names, value)
+end)
+
+mp.register_script_message("execute-worker", function(value)
 	mp.register_event("file-loaded", create_stitches)
 end)
 

@@ -624,12 +624,22 @@ function init_workers(workers)
 	end
 end
 
-function queue_workers(workers)
+function add_to_workers(workers)
 	for key,value in pairs(stitched_names) do
 		worker_index = math.fmod(key, worker_length) + 1
 		local name = strip_file_ext(workers[worker_index])
 		name = string.gsub(name, "-", "_")
-		mp.commandv("script-message-to", name, "queue-worker", tostring(value), root)
+		mp.commandv("script-message-to", name, "add-to-worker", tostring(value))
+	end
+end
+
+function execute_workers(workers)
+	local i = 1
+	while workers[i] do
+		local name = strip_file_ext(workers[i])
+		name = string.gsub(name, "-", "_")
+		mp.commandv("script-message-to", name, "execute-worker", tostring("true"))
+		i = i + 1
 	end
 end
 
@@ -800,7 +810,8 @@ function start_manga_reader()
 	update_worker_bools(workers)
 	if workers[1] then
 		init_workers(workers)
-		queue_workers(workers)
+		add_to_workers(workers)
+		execute_workers(workers)
 	end
 	mp.set_property_bool("osc", false)
 	mp.set_property_bool("idle", true)
