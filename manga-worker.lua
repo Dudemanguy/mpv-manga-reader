@@ -15,7 +15,7 @@ local opts = {
 	auto_start = false,
 	double = false,
 	manga = true,
-	pages = 10,
+	pages = -1,
 	skip_size = 10,
 	worker = true,
 }
@@ -107,7 +107,9 @@ end
 
 function create_stitches()
 	local start = index
-	if start + opts.pages > length then
+	if opts.pages == -1 then
+		last = length - 2
+	elseif start + opts.pages > length then
 		last = length - 2
 	else
 		last = start+opts.pages

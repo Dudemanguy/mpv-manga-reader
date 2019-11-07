@@ -16,7 +16,7 @@ local opts = {
 	auto_start = false,
 	double = false,
 	manga = true,
-	pages = 10,
+	pages = -1,
 	skip_size = 10,
 	worker = true,
 }
