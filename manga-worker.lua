@@ -21,9 +21,9 @@ local opts = {
 }
 local index = 0
 local length
-local lock_name
 local root
 local stitched_names = {}
+local worker_lock
 
 function check_aspect_ratio(a, b)
 	local m = a[0]+b[0]
@@ -114,6 +114,9 @@ function create_stitches()
 	end
 	for i=start,last-1 do
 		if not opts.worker then
+			break
+		end
+		if not file_exists(worker_lock) then
 			break
 		end
 		local cur_page = filearray[i]
@@ -243,7 +246,6 @@ function get_filelist(path)
 end
 
 function remove_tmp_files()
-	os.execute("rm "..lock_name)
 	if length ~= nil then
 		for i=0,length-1 do
 			if stitched_names[i] ~= nil then
@@ -296,6 +298,7 @@ mp.register_script_message("add-to-worker", function(value)
 end)
 
 mp.register_script_message("execute-worker", function(value)
+	worker_lock = value
 	mp.register_event("file-loaded", create_stitches)
 end)
 
@@ -324,5 +327,5 @@ mp.register_script_message("worker-index", function(num)
 end)
 
 local script_name = mp.get_script_name()
-lock_name = script_name..".lock"
-os.execute("touch "..lock_name)
+worker_lock = script_name..".lock"
+os.execute("touch "..worker_lock)

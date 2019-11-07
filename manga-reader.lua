@@ -638,7 +638,7 @@ function execute_workers(workers)
 	while workers[i] do
 		local name = strip_file_ext(workers[i])
 		name = string.gsub(name, "-", "_")
-		mp.commandv("script-message-to", name, "execute-worker", tostring("true"))
+		mp.commandv("script-message-to", name, "execute-worker", tostring(worker_locks[i]))
 		i = i + 1
 	end
 end
@@ -822,12 +822,11 @@ function start_manga_reader()
 	change_page(0)
 end
 
-function wait_for_workers()
+function kill_workers()
 	local i = 1
 	while workers[i] do
-		if not file_exists(worker_locks[i]) then
-			i = i + 1
-		end
+		os.execute("rm "..worker_locks[i])
+		i = i + 1
 	end
 end
 
@@ -847,7 +846,7 @@ function toggle_reader()
 end
 
 function mpv_close()
-	wait_for_workers()
+	kill_workers()
 	close_manga_reader()
 	remove_tmp_files()
 end
