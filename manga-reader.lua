@@ -612,6 +612,14 @@ function remove_tmp_files_no_shutdown()
 	end
 end
 
+function remove_worker_locks()
+	local i = 1
+	while workers[i] do
+		os.execute("rm "..worker_locks[i])
+		i = i + 1
+	end
+end
+
 function init_workers(workers)
 	local i = 1
 	while workers[i] do
@@ -696,6 +704,7 @@ function toggle_worker()
 	if opts.worker and workers[1] then
 		opts.worker = false
 		mp.osd_message("Stopping Workers")
+		remove_worker_locks()
 	elseif not workers [1] then
 		opts.worker = false
 		mp.osd_message("No workers found. Nothing to toggle!")
@@ -822,14 +831,6 @@ function start_manga_reader()
 	change_page(0)
 end
 
-function kill_workers()
-	local i = 1
-	while workers[i] do
-		os.execute("rm "..worker_locks[i])
-		i = i + 1
-	end
-end
-
 function toggle_reader()
 	if detect.init then
 		close_manga_reader()
@@ -846,7 +847,7 @@ function toggle_reader()
 end
 
 function mpv_close()
-	kill_workers()
+	remove_worker_locks()
 	close_manga_reader()
 	remove_tmp_files()
 end

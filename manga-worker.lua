@@ -40,6 +40,12 @@ function check_aspect_ratio(a, b)
 	end
 end
 
+function create_lock()
+	local script_name = mp.get_script_name()
+	worker_lock = script_name..".lock"
+	os.execute("touch "..worker_lock)
+end
+
 function escape_special_characters(str)
 	str = string.gsub(str, " ", "\\ ")
 	str = string.gsub(str, "%(", "\\(")
@@ -160,6 +166,7 @@ function create_stitches()
 			end
 		end
 	end
+	create_lock()
 end
 
 function str_split(str, delim)
@@ -248,6 +255,7 @@ function get_filelist(path)
 end
 
 function remove_tmp_files()
+	os.execute("rm "..worker_lock)
 	if length ~= nil then
 		for i=0,length-1 do
 			if stitched_names[i] ~= nil then
@@ -328,6 +336,4 @@ mp.register_script_message("worker-index", function(num)
 	index = tonumber(num)
 end)
 
-local script_name = mp.get_script_name()
-worker_lock = script_name..".lock"
-os.execute("touch "..worker_lock)
+create_lock()
