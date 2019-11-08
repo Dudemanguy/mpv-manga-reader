@@ -211,6 +211,10 @@ function file_exists(name)
 end
 
 function imagemagick_attach(page_one, page_two, direction, name)
+	if not detect.archive and not detect.rar_archive then
+		page_one = utils.join_path(root, page_one)
+		page_two = utils.join_path(root, page_two)
+	end
 	if opts.manga and not opts.continuous then
 		os.execute("convert "..page_two.." "..page_one.." "..direction.." "..name)
 	else
@@ -274,7 +278,7 @@ function generate_name(cur_page, next_page)
 	return name
 end
 
-function get_filelist(path)
+function get_filelist(path, full_path)
 	local filelist
 	if detect.rar_archive then
 		local archive = string.gsub(path, ".*/", "")
@@ -292,7 +296,7 @@ function get_filelist(path)
 			filelist = io.popen("zipinfo -1 "..archive)
 		end
 	else
-		local exists = utils.file_info(path)
+		local exists = utils.file_info(full_path)
 		if exists ~= nil then
 			filelist = io.popen("ls "..path)
 		end
@@ -426,9 +430,6 @@ function continuous_page(alignment)
 		elseif detect.zip then
 			archive_extract("unzip -o", archive, top_page, bottom_page)
 		end
-	else
-		top_page = utils.join_path(root, top_page)
-		bottom_page = utils.join_path(root, bottom_page)
 	end
 	imagemagick_append(top_page, bottom_page, "-append", name)
 	if detect.archive or detect.rar_archive then
@@ -465,9 +466,6 @@ function double_page()
 		elseif detect.zip then
 			archive_extract("unzip -o", archive, cur_page, next_page)
 		end
-	else
-		cur_page = utils.join_path(root, cur_page)
-		next_page = utils.join_path(root, next_page)
 	end
 	imagemagick_append(cur_page, next_page, "+append", name)
 	if detect.archive or detect.rar_archive then
@@ -989,7 +987,7 @@ function setup_init_values()
 		init_arg = root
 		init_arg = string.gsub(init_arg, "\\", "")
 	end
-	local filelist = get_filelist(root)
+	local filelist = get_filelist(root, path)
 	if filelist == nil then
 		mp.unregister_event(setup_init_values)
 		return

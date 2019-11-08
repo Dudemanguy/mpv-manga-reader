@@ -91,7 +91,7 @@ Defaults to 0.05`. Defines the magnitude of pan-up and pan-down.
 Defaults to `10`. This is the interval used by the `skip-forward` and `skip-backward` functions.
 
 ``trigger_buffer``\
-Defaults to 0.05. When in continuous mode, the manga reader attempts to be smart and change pages for you once a pan value goes past a certain amount (determined by the page dimensions and the vertical alignment). The trigger_buffer is an additional value added to this parameter. Basically, increasing the value will make it take longer for panning a page to change values whereas decreasing does the opposite.
+Defaults to 0.05. When in continuous mode, the manga reader attempts to be smart and change pages for you once a pan value goes past a certain amount (determined by the page dimensions and the vertical alignment). The trigger_buffer is an additional value added to this parameter. Basically, increasing the value will make it take longer for panning a page to change pages whereas decreasing does the opposite.
 
 ``worker``\
 Defaults to `yes`. Tells the manga-reader to use manga-worker scripts if they are available.

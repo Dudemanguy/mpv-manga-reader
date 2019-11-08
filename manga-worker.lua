@@ -91,6 +91,10 @@ function file_exists(name)
 end
 
 function imagemagick_attach(page_one, page_two, direction, name)
+	if not detect.archive and not detect.rar_archive then
+		page_one = utils.join_path(root, page_one)
+		page_two = utils.join_path(root, page_two)
+	end
 	if opts.manga and not opts.continuous then
 		os.execute("convert "..page_two.." "..page_one.." "..direction.." "..name)
 	else
@@ -209,9 +213,6 @@ function create_continuous_page_stitches(start, last)
 					elseif detect.zip then
 						archive_extract("unzip -o", archive, top_page, bottom_page)
 					end
-				else
-					top_page = utils.join_path(root, filearray[i])
-					bottom_page = utils.join_path(root, filearray[i+1])
 				end
 				imagemagick_append(top_page, bottom_page, "-append", name)
 				if detect.archive or detect.rar_archive then
@@ -254,9 +255,6 @@ function create_double_page_stitches(start, last)
 					elseif detect.zip then
 						archive_extract("unzip -o", archive, cur_page, next_page)
 					end
-				else
-					cur_page = utils.join_path(root, filearray[i])
-					next_page = utils.join_path(root, filearray[i+1])
 				end
 				imagemagick_append(cur_page, next_page, "+append", name)
 				if detect.archive or detect.rar_archive then
