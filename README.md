@@ -27,6 +27,7 @@ By default, starting mpv-manga-reader is bound to `y`. It will start in manga mo
 
 * toggle-manga-reader: `y`
 * toggle-double-page: `d`
+* toggle-continuous-mode: `c`
 * toggle-manga-mode: `m`
 * toggle-worker: `a`
 * next-page: `LEFT`
@@ -37,6 +38,8 @@ By default, starting mpv-manga-reader is bound to `y`. It will start in manga mo
 * skip-backward: `Ctrl+RIGHT`
 * first-page: `HOME`
 * last-page: `END`
+* pan-up: `UP`
+* pan-down: `DOWN`
 * jump-page-mode: `/`
 * jump-page-go: `ENTER`
 * jump-page-quit: `ctrl+[`
@@ -60,17 +63,35 @@ Defaults to `16/9`. There's not a good way to detect the monitor size, but using
 ``auto_start``\
 Defaults to `no`. Automatically start the reader if valid images are detected.
 
+``continuous``\
+Defaults to `no`. Tells the manga reader whether or not to start in continuous mode. This is mutually exclusive with double page mode.
+
+``continuous_size``\
+Defaults to `4`. This is the amount of pages stitched together for each chunk in continuous mode.
+
 ``double``\
-Defaults to `no`. Tells the manga reader whether or not to start in double page mode.
+Defaults to `no`. Tells the manga reader whether or not to start in double page mode. This is mutally exclusive with continuous mode.
 
 ``manga``\
 Defaults to `yes`. Tells the manga reader whether or not to start in manga mode (i.e. read right-to-left or left-to-right).
 
+``monitor_height``\
+Defaults to `1080`. The height of the display. Apply any DPI scaling used to this value (i.e. a 4096x2160 display with a DPI scale of 2 should be set to 1080).
+
+``monitor_width``\
+Defaults to `1920`. The width of the display. Apply any DPI scaling used to this value (i.e. a 4096x2160 display with a DPI scale of 2 should be set to 1920).
+
 ``pages``\
 Defaults to `-1`. Tells the manga-worker scripts how many pages ahead of the current loaded page to stitch together. `-1` means to stitch pages all the way to the end of the archive/directory. Set to a positive number if you want to stop at a certain point.
 
+``pan_size``\
+Defaults to 0.05`. Defines the magnitude of pan-up and pan-down.
+
 ``skip_size``\
 Defaults to `10`. This is the interval used by the `skip-forward` and `skip-backward` functions.
+
+``trigger_buffer``\
+Defaults to 0.05. When in continuous mode, the manga reader attempts to be smart and change pages for you once a pan value goes past a certain amount (determined by the page dimensions and the vertical alignment). The trigger_buffer is an additional value added to this parameter. Basically, increasing the value will make it take longer for panning a page to change values whereas decreasing does the opposite.
 
 ``worker``\
 Defaults to `yes`. Tells the manga-reader to use manga-worker scripts if they are available.

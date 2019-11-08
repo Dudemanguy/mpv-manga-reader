@@ -14,13 +14,21 @@ local detect = {
 local opts = {
 	aspect_ratio = 16/9,
 	auto_start = false,
+	continuous = false,
+	continuous_size = 4,
 	double = false,
 	manga = true,
+	monitor_height = 1080,
+	monitor_width = 1920,
 	pages = -1,
+	pan_size = 0.05,
 	skip_size = 10,
+	trigger_buffer = 0.05,
 	worker = true,
 }
 local dir
+local continuous_page_names = {}
+local double_page_names = {}
 local filearray = {}
 local filedims = {}
 local first_start = true
@@ -30,13 +38,47 @@ local input = ""
 local jump = false
 local length
 local names = nil
-local stitched_names = {}
 local root
 local valid_width
 local workers = {}
 local worker_locks = {}
 local worker_init_bool = true
 local worker_length = 0
+
+function archive_extract(command, archive, first_page, last_page)
+	local extract = false
+	for i=0,length-1 do
+		if filearray[i] == first_page then
+			extract = true
+		end
+		if extract then
+			os.execute(command.." "..archive.." "..filearray[i])
+		end
+		if filearray[i] == last_page then
+			extract = false
+			break
+		end
+	end
+end
+
+function calculate_displayed_dims(dims)
+	dims[0] = tonumber(dims[0])
+	dims[1] = tonumber(dims[1])
+	local y_align = mp.get_property_number("video-align-y")
+	local y_pos = mp.get_property_number("video-pan-y")
+	local zoom_level = mp.get_property_number("video-zoom")
+end
+
+function calculate_zoom_level(dims)
+	dims[0] = tonumber(dims[0])
+	dims[1] = tonumber(dims[1])
+	local scaled_width = opts.monitor_height/dims[1] * dims[0]
+	if opts.monitor_width >= opts.continuous_size*scaled_width then
+		return opts.continuous_size
+	else
+		return opts.monitor_width / scaled_width
+	end
+end
 
 function check_archive(path)
 	if string.find(path, "archive://") == nil then
@@ -145,6 +187,7 @@ function check_archive_type()
 end
 
 function check_image()
+	os.execute("sleep 1")
 	audio = mp.get_property("audio-params")
 	frame_count = mp.get_property("estimated-frame-count")
 	if audio == nil and (frame_count == "1" or frame_count == "0") then
@@ -173,6 +216,45 @@ function file_exists(name)
 		io.close(f)
 		return true
 	end
+end
+
+function imagemagick_attach(page_one, page_two, direction, name)
+	if opts.manga and not opts.continuous then
+		os.execute("convert "..page_two.." "..page_one.." "..direction.." "..name)
+	else
+		os.execute("convert "..page_one.." "..page_two.." "..direction.." "..name)
+	end
+end
+
+function imagemagick_append(first_page, last_page, direction, name)
+	local append = false
+	local tmp_name = ""
+	for i=0,length-1 do
+		if filearray[i] == first_page and filearray[i+1] == last_page then
+			imagemagick_attach(first_page, last_page, direction, name)
+			append = false
+			break
+		elseif filearray[i] == first_page then
+			append = true
+			tmp_name = generate_name(filearray[i], filearray[i+1])
+			imagemagick_attach(filearray[i], filearray[i+1], direction, tmp_name)
+		elseif filearray[i+1] == last_page then
+			if append then
+				imagemagick_attach(tmp_name, filearray[i+1], direction, name)
+				os.execute("rm "..tmp_name)
+				append = false
+				break
+			end
+		else
+			if append then
+				imagemagick_attach(tmp_name, filearray[i+1], direction, tmp_name)
+			end
+		end
+	end
+end
+
+function log2(num)
+	return math.log(num)/math.log(2)
 end
 
 function strip_file_ext(str)
@@ -218,7 +300,10 @@ function get_filelist(path)
 			filelist = io.popen("zipinfo -1 "..archive)
 		end
 	else
-		filelist = io.popen("ls "..path)
+		local exists = utils.file_info(path)
+		if exists ~= nil then
+			filelist = io.popen("ls "..path)
+		end
 	end
 	return filelist
 end
@@ -303,6 +388,63 @@ function get_dims(page)
 	return dims
 end
 
+function continuous_page_load(name, alignment)
+	local p = io.popen("identify -format '%w,%h' "..name)
+	io.input(p)
+	local str = io.read()
+	io.close()
+	local dims = str_split(str, ",")
+	mp.commandv("loadfile", name, "replace")
+	mp.set_property("video-pan-y", 0)
+	local zoom_level = calculate_zoom_level(dims)
+	mp.set_property("video-zoom", log2(zoom_level))
+	if alignment == "top" then
+		mp.set_property("video-align-y", -1)
+	else
+		mp.set_property("video-align-y", 1)
+	end
+end
+
+function continuous_page(alignment)
+	local top_page = filearray[index]
+	local bottom_page = filearray[index + opts.continuous_size - 1]
+	local name = generate_name(top_page, bottom_page)
+	local zoom_level
+	if file_exists(name) then
+		continuous_page_load(name, alignment)
+		return
+	end
+	if names == nil then
+		names = name
+	else
+		names = names.." "..name
+	end
+	if detect.rar_archive then
+		local archive = string.gsub(root, ".*/", "")
+		archive = string.gsub(archive, "|.*", "")
+		archive_extract("7z x", archive, top_page, bottom_page)
+	elseif detect.archive then
+		local archive = string.gsub(root, ".*/", "")
+		if detect.p7zip then
+			archive_extract("7z x", archive, top_page, bottom_page)
+		elseif detect.rar then
+			archive_extract("7z x", archive, top_page, bottom_page)
+		elseif detect.tar then
+			archive_extract("tar -xf", archive, top_page, bottom_page)
+		elseif detect.zip then
+			archive_extract("unzip -o", archive, top_page, bottom_page)
+		end
+	else
+		top_page = utils.join_path(root, top_page)
+		bottom_page = utils.join_path(root, bottom_page)
+	end
+	imagemagick_append(top_page, bottom_page, "-append", name)
+	if detect.archive or detect.rar_archive then
+		os.execute("rm "..top_page.." "..bottom_page)
+	end
+	continuous_page_load(name, alignment)
+end
+
 function double_page()
 	local cur_page = filearray[index]
 	local next_page = filearray[index + 1]
@@ -319,27 +461,23 @@ function double_page()
 	if detect.rar_archive then
 		local archive = string.gsub(root, ".*/", "")
 		archive = string.gsub(archive, "|.*", "")
-		os.execute("7z x "..archive.." "..cur_page.." "..next_page)
+		archive_extract("7z x", archive, cur_page, next_page)
 	elseif detect.archive then
 		local archive = string.gsub(root, ".*/", "")
 		if detect.p7zip then
-			os.execute("7z x "..archive.." "..cur_page.." "..next_page)
+			archive_extract("7z x", archive, cur_page, next_page)
 		elseif detect.rar then
-			os.execute("7z x "..archive.." "..cur_page.." "..next_page)
+			archive_extract("7z x", archive, cur_page, next_page)
 		elseif detect.tar then
-			os.execute("tar -xf "..archive.." "..cur_page.." "..next_page)
+			archive_extract("tar -xf", archive, cur_page, next_page)
 		elseif detect.zip then
-			os.execute("unzip -o "..archive.." "..cur_page.." "..next_page)
+			archive_extract("unzip -o", archive, cur_page, next_page)
 		end
 	else
 		cur_page = utils.join_path(root, cur_page)
 		next_page = utils.join_path(root, next_page)
 	end
-	if opts.manga then
-		os.execute("convert "..next_page.." "..cur_page.." +append "..name)
-	else
-		os.execute("convert "..cur_page.." "..next_page.." +append "..name)
-	end
+	imagemagick_append(cur_page, next_page, "+append", name)
 	if detect.archive or detect.rar_archive then
 		os.execute("rm "..cur_page.." "..next_page)
 	end
@@ -371,7 +509,16 @@ function change_page(amount)
 		change_page(0)
 		return
 	end
-	if opts.double then
+	if opts.continuous then
+		if index > length - opts.continuous_size then
+			index = length - opts.continuous_size
+		end
+		if amount >= 0 then
+			continuous_page("top")
+		elseif amount < 0 then
+			continuous_page("bottom")
+		end
+	elseif opts.double then
 		if index > length - 2 then
 			index = length - 2
 		end
@@ -398,6 +545,8 @@ end
 function next_page()
 	if opts.double and valid_width then
 		change_page(2)
+	elseif opts.continuous then
+		change_page(opts.continuous_size)
 	else
 		change_page(1)
 	end
@@ -406,6 +555,8 @@ end
 function prev_page()
 	if opts.double then
 		change_page(-2)
+	elseif opts.continuous then
+		change_page(-opts.continuous_size)
 	else
 		change_page(-1)
 	end
@@ -439,6 +590,14 @@ function last_page()
 		index = length - 1
 	end
 	change_page(0)
+end
+
+function pan_up()
+	mp.commandv("add", "video-pan-y", opts.pan_size)
+end
+
+function pan_down()
+	mp.commandv("add", "video-pan-y", -opts.pan_size)
 end
 
 function one_handler()
@@ -573,6 +732,8 @@ function set_keys()
 		mp.add_forced_key_binding("Ctrl+RIGHT", "skip-forward", skip_forward)
 		mp.add_forced_key_binding("Ctrl+LEFT", "skip-backward", skip_backward)
 	end
+	mp.add_forced_key_binding("UP", "pan-up", pan_up)
+	mp.add_forced_key_binding("DOWN", "pan-down", pan_down)
 	mp.add_forced_key_binding("HOME", "first-page", first_page)
 	mp.add_forced_key_binding("END", "last-page", last_page)
 	mp.add_forced_key_binding("/", "jump-page-mode", jump_page_mode)
@@ -615,7 +776,9 @@ end
 function remove_worker_locks()
 	local i = 1
 	while workers[i] do
-		os.execute("rm "..worker_locks[i])
+		if file_exists(worker_locks[i]) then
+			os.execute("rm "..worker_locks[i])
+		end
 		i = i + 1
 	end
 end
@@ -632,12 +795,21 @@ function init_workers(workers)
 	end
 end
 
-function add_to_workers(workers)
-	for key,value in pairs(stitched_names) do
+function double_page_names_workers(workers)
+	for key,value in pairs(double_page_names) do
 		worker_index = math.fmod(key, worker_length) + 1
 		local name = strip_file_ext(workers[worker_index])
 		name = string.gsub(name, "-", "_")
-		mp.commandv("script-message-to", name, "add-to-worker", tostring(value))
+		mp.commandv("script-message-to", name, "double-page-name-worker", tostring(value))
+	end
+end
+
+function continuous_page_names_workers(workers)
+	for key,value in pairs(continuous_page_names) do
+		worker_index = math.fmod(key, worker_length) + 1
+		local name = strip_file_ext(workers[worker_index])
+		name = string.gsub(name, "-", "_")
+		mp.commandv("script-message-to", name, "continuous-page-name-worker", tostring(value))
 	end
 end
 
@@ -656,9 +828,11 @@ function update_worker_bools(workers)
 	while workers[i] do
 		local name = strip_file_ext(workers[i])
 		name = string.gsub(name, "-", "_")
-		mp.commandv("script-message-to", name, "update-bools", tostring(opts.manga), tostring(opts.worker))
+		mp.commandv("script-message-to", name, "update-bools", tostring(opts.continuous), tostring(opts.manga),
+					tostring(true), tostring(opts.worker))
 		i = i +1
 	end
+	remove_worker_locks()
 end
 
 function update_worker_index(workers)
@@ -671,19 +845,71 @@ function update_worker_index(workers)
 	end
 end
 
+function check_y_pos()
+	if opts.continuous then
+		local total_height = mp.get_property("height")
+		if total_height == nil then;
+			return
+		end
+		local y_pos = mp.get_property_number("video-pan-y")
+		local y_align = mp.get_property_number("video-align-y")
+		if y_align == -1 then
+			local bottom_index = index + opts.continuous_size - 1
+			local bottom_height = filedims[bottom_index][1]
+			local bottom_threshold = bottom_height / total_height - 1 - opts.trigger_buffer
+			if y_pos < bottom_threshold then
+				next_page()
+			end
+			if y_pos > 0 then
+				prev_page()
+			end
+		elseif y_align == 1 then
+			local top_index = index
+			local top_height = filedims[top_index][1]
+			local top_threshold = 1 - top_height / total_height + opts.trigger_buffer
+			if y_pos > top_threshold then
+				prev_page()
+			end
+			if y_pos < 0 then
+				next_page()
+			end
+		end
+	end
+end
+
+function toggle_continuous_mode()
+	if opts.continuous then
+		mp.osd_message("Continuous Mode Off")
+		opts.continuous = false
+		mp.unobserve_property(check_y_pos)
+		mp.set_property("video-zoom", 0)
+		mp.set_property("video-align-y", 0)
+		mp.set_property("video-pan-y", 0)
+	else
+		mp.osd_message("Continuous Mode On")
+		opts.double = false
+		opts.continuous = true
+		mp.observe_property("video-pan-y", number, check_y_pos)
+	end
+	if workers[1] then
+		update_worker_bools(workers)
+	end
+	change_page(0)
+end
+
 function toggle_double_page()
 	if opts.double then
 		mp.osd_message("Double Page Mode Off")
 		opts.double = false
 	else
 		mp.osd_message("Double Page Mode On")
+		opts.continuous = false
 		opts.double = true
 	end
 	change_page(0)
 end
 
 function toggle_manga_mode()
-	local name = mp.get_property("path")
 	if opts.manga then
 		mp.osd_message("Manga Mode Off")
 		opts.manga = false
@@ -772,6 +998,10 @@ function setup_init_values()
 		init_arg = string.gsub(init_arg, "\\", "")
 	end
 	local filelist = get_filelist(root)
+	if filelist == nil then
+		mp.unregister_event(setup_init_values)
+		return
+	end
 	i = 0
 	for filename in filelist:lines() do
 		filename = escape_special_characters(filename)
@@ -785,7 +1015,14 @@ function setup_init_values()
 	filelist:close()
 	length = i
 	for i=0,length-2 do
-		stitched_names[i] = generate_name(filearray[i], filearray[i+1])
+		double_page_names[i] = generate_name(filearray[i], filearray[i+1])
+	end
+	for i=0,length-1 do
+		if i+opts.continuous_size - 1 > length - 1 then
+			continuous_page_names[i] = generate_name(filearray[i], filearray[length-1])
+			break
+		end
+		continuous_page_names[i] = generate_name(filearray[i], filearray[i+opts.continuous_size-1])
 	end
 	mp.unregister_event(setup_init_values)
 end
@@ -798,6 +1035,8 @@ function close_manga_reader()
 		mp.remove_key_binding("prev-single-page")
 		mp.remove_key_binding("skip-forward")
 		mp.remove_key_binding("skip-backward")
+		mp.remove_key_binding("pan-up")
+		mp.remove_key_binding("pan-down")
 		mp.remove_key_binding("first-page")
 		mp.remove_key_binding("last-page")
 		mp.remove_key_binding("jump-page-mode")
@@ -816,17 +1055,24 @@ function start_manga_reader()
 	if worker_init_bool then
 		opts.worker = true
 	end
+	if opts.continuous then
+		opts.double = false
+		opts.continuous = true
+		mp.observe_property("video-pan-y", number, check_y_pos)
+	end
 	update_worker_bools(workers)
 	if workers[1] then
 		init_workers(workers)
-		add_to_workers(workers)
+		double_page_names_workers(workers)
+		continuous_page_names_workers(workers)
 		execute_workers(workers)
 	end
 	mp.set_property_bool("osc", false)
 	mp.set_property_bool("idle", true)
-	mp.add_key_binding("m", "toggle-manga-mode", toggle_manga_mode)
-	mp.add_key_binding("d", "toggle-double-page", toggle_double_page)
 	mp.add_key_binding("a", "toggle-worker", toggle_worker)
+	mp.add_key_binding("c", "toggle-continuous-mode", toggle_continuous_mode)
+	mp.add_key_binding("d", "toggle-double-page", toggle_double_page)
+	mp.add_key_binding("m", "toggle-manga-mode", toggle_manga_mode)
 	index = 0
 	change_page(0)
 end
@@ -847,7 +1093,6 @@ function toggle_reader()
 end
 
 function mpv_close()
-	remove_worker_locks()
 	close_manga_reader()
 	remove_tmp_files()
 end

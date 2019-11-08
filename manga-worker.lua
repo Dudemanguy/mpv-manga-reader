@@ -13,17 +13,42 @@ local detect = {
 local opts = {
 	aspect_ratio = 16/9,
 	auto_start = false,
+	continuous = false,
+	continuous_size = 4,
 	double = false,
 	manga = true,
+	monitor_height = 1080,
+	monitor_width = 1920,
 	pages = -1,
+	pan_keys = true,
+	pan_size = 0.05,
 	skip_size = 10,
+	trigger_zone = 0.05,
 	worker = true,
 }
+local continuous_page_names = {}
+local double_page_names = {}
 local index = 0
 local length
 local root
-local stitched_names = {}
+local shutdown = false
 local worker_lock
+
+function archive_extract(command, archive, first_page, last_page)
+	local extract = false
+	for i=0,length-1 do
+		if filearray[i] == first_page then
+			extract = true
+		end
+		if extract then
+			os.execute(command.." "..archive.." "..filearray[i].." &>/dev/null")
+		end
+		if filearray[i] == last_page then
+			extract = false
+			break
+		end
+	end
+end
 
 function check_aspect_ratio(a, b)
 	local m = a[0]+b[0]
@@ -41,8 +66,6 @@ function check_aspect_ratio(a, b)
 end
 
 function create_lock()
-	local script_name = mp.get_script_name()
-	worker_lock = script_name..".lock"
 	os.execute("touch "..worker_lock)
 end
 
@@ -64,6 +87,41 @@ function file_exists(name)
 	else
 		io.close(f)
 		return true
+	end
+end
+
+function imagemagick_attach(page_one, page_two, direction, name)
+	if opts.manga and not opts.continuous then
+		os.execute("convert "..page_two.." "..page_one.." "..direction.." "..name)
+	else
+		os.execute("convert "..page_one.." "..page_two.." "..direction.." "..name)
+	end
+end
+
+function imagemagick_append(first_page, last_page, direction, name)
+	local append = false
+	local tmp_name = ""
+	for i=0,length-1 do
+		if filearray[i] == first_page and filearray[i+1] == last_page then
+			imagemagick_attach(first_page, last_page, direction, name)
+			append = false
+			break
+		elseif filearray[i] == first_page then
+			append = true
+			tmp_name = generate_name(filearray[i], filearray[i+1])
+			imagemagick_attach(filearray[i], filearray[i+1], direction, tmp_name)
+		elseif filearray[i+1] == last_page then
+			if append then
+				imagemagick_attach(tmp_name, filearray[i+1], direction, name)
+				os.execute("rm "..tmp_name)
+				append = false
+				break
+			end
+		else
+			if append then
+				imagemagick_attach(tmp_name, filearray[i+1], direction, tmp_name)
+			end
+		end
 	end
 end
 
@@ -102,24 +160,69 @@ function generate_name(cur_page, next_page)
 	return name
 end
 
-function valid_stitched_name(name)
+function valid_double_page_name(name)
 	for i=0,length-1 do
-		if name == stitched_names[i] then
+		if name == double_page_names[i] then
 			return true
 		end
 	end
 	return false
 end
 
-function create_stitches()
-	local start = index
-	if opts.pages == -1 then
-		last = length - 2
-	elseif start + opts.pages > length then
-		last = length - 2
-	else
-		last = start+opts.pages
+function valid_continuous_page_name(name)
+	for i=0,length-1 do
+		if name == continuous_page_names[i] then
+			return true
+		end
 	end
+	return false
+end
+
+function create_continuous_page_stitches(start, last)
+	for i=start,last do
+		if not opts.worker then
+			break
+		end
+		if not file_exists(worker_lock) then
+			break
+		end
+		local top_page = filearray[i]
+		local bottom_page = filearray[i+opts.continuous_size-1]
+		if not (filearray[start] and filearray[last]) then
+			return
+		end
+		local name = generate_name(filearray[i], filearray[i+opts.continuous_size-1])
+		if valid_continuous_page_name(name) then
+			if not file_exists(name) then
+				if detect.rar_archive then
+					local archive = string.gsub(root, ".*/", "")
+					archive = string.gsub(archive, "|.*", "")
+					archive_extract("7z x", archive, top_page, bottom_page)
+				elseif detect.archive then
+					local archive = string.gsub(root, ".*/", "")
+					if detect.p7zip then
+						archive_extract("7z x", archive, top_page, bottom_page)
+					elseif detect.rar then
+						archive_extract("7z x", archive, top_page, bottom_page)
+					elseif detect.tar then
+						archive_extract("tar -xf", archive, top_page, bottom_page)
+					elseif detect.zip then
+						archive_extract("unzip -o", archive, top_page, bottom_page)
+					end
+				else
+					top_page = utils.join_path(root, filearray[i])
+					bottom_page = utils.join_path(root, filearray[i+1])
+				end
+				imagemagick_append(top_page, bottom_page, "-append", name)
+				if detect.archive or detect.rar_archive then
+					os.execute("rm "..top_page.." "..bottom_page.." &>/dev/null")
+				end
+			end
+		end
+	end
+end
+
+function create_double_page_stitches(start, last)
 	for i=start,last do
 		if not opts.worker then
 			break
@@ -134,39 +237,58 @@ function create_stitches()
 		end
 		local width_check = check_aspect_ratio(filedims[i], filedims[i+1])
 		local name = generate_name(filearray[i], filearray[i+1])
-		if valid_stitched_name(name) then
+		if valid_double_page_name(name) then
 			if not file_exists(name) and width_check then
 				if detect.rar_archive then
 					local archive = string.gsub(root, ".*/", "")
 					archive = string.gsub(archive, "|.*", "")
-					os.execute("7z x "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
+					archive_extract("7z x", archive, cur_page, next_page)
 				elseif detect.archive then
 					local archive = string.gsub(root, ".*/", "")
 					if detect.p7zip then
-						os.execute("7z x "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
+						archive_extract("7z x", archive, cur_page, next_page)
 					elseif detect.rar then
-						os.execute("7z x "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
+						archive_extract("7z x", archive, cur_page, next_page)
 					elseif detect.tar then
-						os.execute("tar -xf "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
+						archive_extract("tar -xf", archive, cur_page, next_page)
 					elseif detect.zip then
-						os.execute("unzip -o "..archive.." "..cur_page.." "..next_page.." &>/dev/null")
+						archive_extract("unzip -o", archive, cur_page, next_page)
 					end
 				else
 					cur_page = utils.join_path(root, filearray[i])
 					next_page = utils.join_path(root, filearray[i+1])
 				end
-				if opts.manga then
-					os.execute("convert "..next_page.." "..cur_page.." +append "..name.." &>/dev/null")
-				else
-					os.execute("convert "..cur_page.." "..next_page.." +append "..name.." &>/dev/null")
-				end
+				imagemagick_append(cur_page, next_page, "+append", name)
 				if detect.archive or detect.rar_archive then
 					os.execute("rm "..cur_page.." "..next_page.." &>/dev/null")
 				end
 			end
 		end
 	end
-	create_lock()
+end
+
+function create_stitches()
+	if shutdown then
+		return
+	end
+	if not file_exists(worker_lock) then
+		create_lock()
+	end
+	local start = index
+	if opts.pages == -1 then
+		last = length - 1
+	elseif start + opts.pages > length then
+		last = length - 1
+	else
+		last = start+opts.pages
+	end
+	if opts.continuous then
+		create_continuous_page_stitches(start, last)
+		return
+	else
+		create_double_page_stitches(start, last - 1)
+		return
+	end
 end
 
 function str_split(str, delim)
@@ -257,8 +379,13 @@ end
 function remove_tmp_files()
 	if length ~= nil then
 		for i=0,length-1 do
-			if stitched_names[i] ~= nil then
-				os.execute("rm -f "..stitched_names[i].." &>/dev/null")
+			if continuous_page_names[i] ~= nil then
+				os.execute("rm -f "..continuous_page_names[i].." &>/dev/null")
+			end
+		end
+		for i=0,length-1 do
+			if double_page_names[i] ~= nil then
+				os.execute("rm -f "..double_page_names[i].." &>/dev/null")
 			end
 		end
 	end
@@ -302,25 +429,34 @@ mp.register_script_message("init-worker", function(archive, rar_archive, p7zip, 
 	length = i
 end)
 
-mp.register_script_message("add-to-worker", function(value)
-	table.insert(stitched_names, value)
+mp.register_script_message("double-page-name-worker", function(value)
+	table.insert(double_page_names, value)
+end)
+
+mp.register_script_message("continuous-page-name-worker", function(value)
+	table.insert(continuous_page_names, value)
 end)
 
 mp.register_script_message("execute-worker", function(value)
-	worker_lock = value
 	mp.register_event("file-loaded", create_stitches)
 end)
 
-mp.register_script_message("update-bools", function(manga, worker)
-	local str1 = manga
-	local str2 = worker
+mp.register_script_message("update-bools", function(continuous, manga, shutdown, worker)
 	local prev_manga = opts.manga
-	if str1 == "true" then
+	if continuous == "true" then
+		opts.continuous = true
+	else
+		opts.continuous = false
+	end
+	if manga == "true" then
 		opts.manga = true
 	else
 		opts.manga = false
 	end
-	if str2 == "true" then
+	if shutdown == "true" then
+		shutdown = true
+	end
+	if worker == "true" then
 		opts.worker = true
 	else
 		opts.worker = false
@@ -335,4 +471,5 @@ mp.register_script_message("worker-index", function(num)
 	index = tonumber(num)
 end)
 
-create_lock()
+local script_name = mp.get_script_name()
+worker_lock = script_name..".lock"
