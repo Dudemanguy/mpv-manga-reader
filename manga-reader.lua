@@ -1,4 +1,4 @@
-require 'mp.options'
+require "mp.options"
 local utils = require "mp.utils"
 local detect = {
 	archive = false,
@@ -59,14 +59,6 @@ function archive_extract(command, archive, first_page, last_page)
 			break
 		end
 	end
-end
-
-function calculate_displayed_dims(dims)
-	dims[0] = tonumber(dims[0])
-	dims[1] = tonumber(dims[1])
-	local y_align = mp.get_property_number("video-align-y")
-	local y_pos = mp.get_property_number("video-pan-y")
-	local zoom_level = mp.get_property_number("video-zoom")
 end
 
 function calculate_zoom_level(dims)

@@ -1,5 +1,5 @@
-require 'mp.options'
-local utils = require 'mp.utils'
+require "mp.options"
+local utils = require "mp.utils"
 local filearray = {}
 local filedims = {}
 local detect = {
