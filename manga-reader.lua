@@ -211,10 +211,6 @@ function file_exists(name)
 end
 
 function imagemagick_attach(page_one, page_two, direction, name)
-	if not detect.archive and not detect.rar_archive then
-		page_one = utils.join_path(root, page_one)
-		page_two = utils.join_path(root, page_two)
-	end
 	if opts.manga and not opts.continuous then
 		os.execute("convert "..page_two.." "..page_one.." "..direction.." "..name)
 	else
@@ -224,26 +220,52 @@ end
 
 function imagemagick_append(first_page, last_page, direction, name)
 	local append = false
+	local page_one = ""
+	local page_two = ""
 	local tmp_name = ""
 	for i=0,length-1 do
 		if filearray[i] == first_page and filearray[i+1] == last_page then
-			imagemagick_attach(first_page, last_page, direction, name)
+			if not detect.archive and not detect.rar_archive then
+				page_one = utils.join_path(root, first_page)
+				page_two = utils.join_path(root, last_page)
+			else
+				page_one = first_page
+				page_two = last_page
+			end
+			imagemagick_attach(page_one, page_two, direction, name)
 			append = false
 			break
 		elseif filearray[i] == first_page then
 			append = true
 			tmp_name = generate_name(filearray[i], filearray[i+1])
-			imagemagick_attach(filearray[i], filearray[i+1], direction, tmp_name)
+			if not detect.archive and not detect.rar_archive then
+				page_one = utils.join_path(root, filearray[i])
+				page_two = utils.join_path(root, filearray[i+1])
+			else
+				page_one = filearray[i]
+				page_two = filearray[i+1]
+			end
+			imagemagick_attach(page_one, page_two, direction, tmp_name)
 		elseif filearray[i+1] == last_page then
 			if append then
-				imagemagick_attach(tmp_name, filearray[i+1], direction, name)
+				if not detect.archive and not detect.rar_archive then
+					page_two = utils.join_path(root, filearray[i+1])
+				else
+					page_two = filearray[i+1]
+				end
+				imagemagick_attach(tmp_name, page_two, direction, name)
 				os.execute("rm "..tmp_name)
 				append = false
 				break
 			end
 		else
 			if append then
-				imagemagick_attach(tmp_name, filearray[i+1], direction, tmp_name)
+				if not detect.archive and not detect.rar_archive then
+					page_two = utils.join_path(root, filearray[i+1])
+				else
+					page_two = filearray[i+1]
+				end
+				imagemagick_attach(tmp_name, page_two, direction, tmp_name)
 			end
 		end
 	end
