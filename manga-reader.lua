@@ -838,7 +838,7 @@ end
 function check_y_pos()
 	if opts.continuous then
 		local total_height = mp.get_property("height")
-		if total_height == nil then;
+		if total_height == nil then
 			return
 		end
 		local y_pos = mp.get_property_number("video-pan-y")
