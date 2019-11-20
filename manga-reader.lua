@@ -303,11 +303,10 @@ end
 function get_filelist(path, full_path)
 	local filelist
 	if detect.rar_archive then
-		local archive = string.gsub(path, ".*/", "")
-		archive = string.gsub(archive, "|.*", "")
+		local archive = string.gsub(archive, "rar://", "")
 		filelist = io.popen("7z l -slt "..archive.. " | grep 'Path =' | grep -v "..archive.." | sed 's/Path = //g'")
 	elseif detect.archive then
-		local archive = string.gsub(path, ".*/", "")
+		local archive = string.gsub(path, "archive://", "")
 		if detect.p7zip then
 			filelist = io.popen("7z l -slt "..archive.. " | grep 'Path =' | grep -v "..archive.." | sed 's/Path = //g'")
 		elseif detect.rar then
@@ -359,8 +358,7 @@ function get_dims(page)
 	local p
 	local str
 	if detect.rar_archive then
-		local archive = string.gsub(root, ".*/", "")
-		archive = string.gsub(archive, "|.*", "")
+		local archive = string.gsub(root, "rar://", "")
 		p = io.popen("7z e -so "..archive.." "..page.." | identify -")
 		io.input(p)
 		str = io.read()
@@ -372,7 +370,7 @@ function get_dims(page)
 			dims = str_split(sub, "x")
 		end
 	elseif detect.archive then
-		local archive = string.gsub(root, ".*/", "")
+		local archive = string.gsub(root, "archive://", "")
 		if detect.p7zip then
 			p = io.popen("7z e -so "..archive.." "..page.." | identify -")
 		elseif detect.rar then
@@ -438,11 +436,10 @@ function continuous_page(alignment)
 		names = names.." "..name
 	end
 	if detect.rar_archive then
-		local archive = string.gsub(root, ".*/", "")
-		archive = string.gsub(archive, "|.*", "")
+		local archive = string.gsub(root, "rar://", "")
 		archive_extract("7z x", archive, top_page, bottom_page)
 	elseif detect.archive then
-		local archive = string.gsub(root, ".*/", "")
+		local archive = string.gsub(root, "archive://", "")
 		if detect.p7zip then
 			archive_extract("7z x", archive, top_page, bottom_page)
 		elseif detect.rar then
@@ -474,11 +471,10 @@ function double_page()
 		names = names.." "..name
 	end
 	if detect.rar_archive then
-		local archive = string.gsub(root, ".*/", "")
-		archive = string.gsub(archive, "|.*", "")
+		local archive = string.gsub(root, "rar://", "")
 		archive_extract("7z x", archive, cur_page, next_page)
 	elseif detect.archive then
-		local archive = string.gsub(root, ".*/", "")
+		local archive = string.gsub(root, "archive://", "")
 		if detect.p7zip then
 			archive_extract("7z x", archive, cur_page, next_page)
 		elseif detect.rar then
