@@ -956,8 +956,13 @@ function setup_init_values()
 	io.input(home)
 	local home_dir = io.read()
 	io.close()
-	local cfg_dir = ".config/mpv/scripts"
-	local script_dir = utils.join_path(home_dir, cfg_dir)
+	local script_dir = mp.get_property("config-dir")
+	if script_dir == "" then
+		local cfg_dir = ".config/mpv/scripts"
+		script_dir = utils.join_path(home_dir, cfg_dir)
+	else
+		script_dir = utils.join_path(script_dir, "scripts")
+	end
 	local scripts = utils.readdir(script_dir)
 	local i = 1
 	while scripts[i] do
