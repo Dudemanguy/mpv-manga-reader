@@ -12,7 +12,6 @@ local detect = {
 	zip = false,
 }
 local opts = {
-	aspect_ratio = 16/9,
 	auto_start = false,
 	continuous = false,
 	continuous_size = 4,
@@ -96,7 +95,8 @@ function check_aspect_ratio(a, b)
 	else
 		n = b[1]
 	end
-	if m/n <= opts.aspect_ratio then
+	local aspect_ratio = opts.monitor_width / opts.monitor_height
+	if m/n <= aspect_ratio then
 		return true
 	else
 		return false

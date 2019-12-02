@@ -57,9 +57,6 @@ You can also put multiple copies of the manga-worker script in the directory. Ea
 ## Configuration
 `manga-reader.lua` and all copies of `manga-worker.lua` read configurations from `manga-reader.conf` in your `script-opts` directory. The format for the file is `foo=value`. Here are the available options and their defaults.
 
-``aspect_ratio``\
-Defaults to `16/9`. There's not a good way to detect the monitor size, but using the aspect ratio of the screen it can be calculated whether or not images are too wide to be stitched together in double pages. Note that you need to provide the exact number and not a ratio in the configuration file. So use `1.6` not `16/10`.
-
 ``auto_start``\
 Defaults to `no`. Automatically start the reader if valid images are detected.
 
