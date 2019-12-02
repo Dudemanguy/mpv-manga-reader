@@ -22,7 +22,7 @@ local opts = {
 	pages = -1,
 	pan_size = 0.05,
 	skip_size = 10,
-	trigger_buffer = 0.05,
+	trigger_zone = 0.05,
 	worker = true,
 }
 local dir
@@ -864,7 +864,7 @@ function check_y_pos()
 		if y_align == -1 then
 			local bottom_index = index + opts.continuous_size - 1
 			local bottom_height = filedims[bottom_index][1]
-			local bottom_threshold = bottom_height / total_height - 1 - opts.trigger_buffer
+			local bottom_threshold = bottom_height / total_height - 1 - opts.trigger_zone
 			if y_pos < bottom_threshold then
 				next_page()
 			end
@@ -874,7 +874,7 @@ function check_y_pos()
 		elseif y_align == 1 then
 			local top_index = index
 			local top_height = filedims[top_index][1]
-			local top_threshold = 1 - top_height / total_height + opts.trigger_buffer
+			local top_threshold = 1 - top_height / total_height + opts.trigger_zone
 			if y_pos > top_threshold then
 				prev_page()
 			end

@@ -82,12 +82,12 @@ Defaults to `1920`. The width of the display. Apply any DPI scaling used to this
 Defaults to `-1`. Tells the manga-worker scripts how many pages ahead of the current loaded page to stitch together. `-1` means to stitch pages all the way to the end of the archive/directory. Set to a positive number if you want to stop at a certain point.
 
 ``pan_size``\
-Defaults to 0.05`. Defines the magnitude of pan-up and pan-down.
+Defaults to `0.05`. Defines the magnitude of pan-up and pan-down.
 
 ``skip_size``\
 Defaults to `10`. This is the interval used by the `skip-forward` and `skip-backward` functions.
 
-``trigger_buffer``\
+``trigger_zone``\
 Defaults to 0.05. When in continuous mode, the manga reader attempts to be smart and change pages for you once a pan value goes past a certain amount (determined by the page dimensions and the vertical alignment). The trigger_buffer is an additional value added to this parameter. Basically, increasing the value will make it take longer for panning a page to change pages whereas decreasing does the opposite.
 
 ``worker``\
