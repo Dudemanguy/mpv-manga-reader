@@ -454,7 +454,7 @@ mp.register_script_message("continuous-page-name-worker", function(value)
 end)
 
 mp.register_script_message("execute-worker", function(value)
-	mp.register_event("file-loaded", create_stitches)
+	create_stitches()
 end)
 
 mp.register_script_message("update-bools", function(continuous, manga, shutdown, worker)

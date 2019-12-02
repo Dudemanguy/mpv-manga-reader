@@ -901,6 +901,7 @@ function toggle_continuous_mode()
 	end
 	if workers[1] then
 		update_worker_bools(workers)
+		execute_workers(workers)
 	end
 	change_page(0)
 end
@@ -913,6 +914,10 @@ function toggle_double_page()
 		mp.osd_message("Double Page Mode On")
 		opts.continuous = false
 		opts.double = true
+	end
+	if workers[1] then
+		update_worker_bools(workers)
+		execute_workers(workers)
 	end
 	change_page(0)
 end
