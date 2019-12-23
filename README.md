@@ -1,8 +1,8 @@
 # mpv-manga-reader
 mpv-manga-reader is a fairly hacky (but working) script to make mpv a usable manga reader (it also works great with LN scans). mpv is almost unrivalled at opening images and archives thanks to its high quality rendering, scaling, and shading capabilities, but there's no way internally for it to have something like a double page mode that people expect from manga reading software. Therefore, I created this script to help alleviate those shortcomings and hopefully convince you to finally abandon mcomix.
 
-## Archive support
-Reading archives with mpv is broken with 0.29 on many systems due to some locale nonsense. However this has been fixed in 0.30, so simply update to the next release or compile the master branch.
+## Supported mpv versions
+A recent [commit](https://github.com/mpv-player/mpv/commit/572c32abbedd3860718f099743dfa973b4f58bbc) in mpv has a small change in handling paths with libarchive. The current master of this script only supports mpv from that commit and later on (i.e. just compile mpv from git). If you can't get the latest master branch of mpv for whatever reason and want to use this script, just go back one commit.
 
 ## Dependencies
 mpv-manga-reader obviously depends on mpv. Using mpv built with libarchive support is also recommended. Due to the lack of decent image manipulating libraries in lua, I decided to instead make several shell calls instead. Here is a list of everything you will need in your path.

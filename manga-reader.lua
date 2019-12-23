@@ -498,11 +498,11 @@ function single_page()
 		local noescaperoot = string.gsub(root, "\\", "")
 		local noescapepage = string.gsub(page, "\\", "")
 		local switchslash = string.gsub(noescapepage, "/", "\\")
-		mp.commandv("loadfile", noescaperoot.."|"..switchslash, "replace")
+		mp.commandv("loadfile", noescaperoot.."|/"..switchslash, "replace")
 	elseif detect.archive then
 		local noescaperoot = string.gsub(root, "\\", "")
 		local noescapepage = string.gsub(page, "\\", "")
-		mp.commandv("loadfile", noescaperoot.."|"..noescapepage, "replace")
+		mp.commandv("loadfile", noescaperoot.."|/"..noescapepage, "replace")
 	else
 		local path = utils.join_path(root, page)
 		path = string.gsub(path, "\\", "")
