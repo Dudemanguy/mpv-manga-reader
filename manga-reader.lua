@@ -1008,6 +1008,7 @@ function setup_init_values()
 			return
 		end
 		dir = string.gsub(path, ".*|", "")
+		dir = string.sub(dir, 2)
 		dir = string.gsub(dir, "/.*", "")
 		init_arg = string.gsub(root, ".*/", "") 
 		init_arg = string.gsub(init_arg, "\\", "")
