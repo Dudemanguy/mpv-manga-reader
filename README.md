@@ -1,7 +1,7 @@
 # mpv-manga-reader
 mpv-manga-reader is a script aimed at making mpv a usable manga reader (it also works great with LN scans). mpv is almost unrivalled at opening images and archives thanks to its high quality rendering, scaling, and shading capabilities, but there's no way internally for it to have something like a double page mode that people expect from manga reading software. Therefore, I created this script to help alleviate those shortcomings and hopefully convince you to finally abandon mcomix.
 
-## Note:
+## Note
 The manga-reader script has been completely rewritten. Remove any manga-worker scripts if you have them. They are no longer needed. Instead of making imagemagick calls, `manga-reader` is now based around the `lavfi-complex` filter (which I didn't know existed when I originally wrote this). Thanks to this, the script now works *with* mpv's playlist feature instead of having to work around it like it was doing previously. Using `lavfi-complex` is much faster (no more background image stitching hogging the I/O and CPU), has less boilerplate, and also removes all of the shell calls. That means it should work on Windows now. The only special thing it requires is an `os.clock()` call which should exist pretty much everywhere.
 
 ## Usage
@@ -33,7 +33,7 @@ Keybindings can all be changed in input.conf in the usual way (i.e. `key script-
 ## jump-page
 The `jump-page` functions work a little bit differently than the rest of the reader. Pressing `jump-page-mode` will do some key rebinds and then prompt the user with a message asking which page to move to. Simply press any combination of numbers followed by `jump-page-go` to move to the desired page. If the entered number is out of range, a message will be displayed. Either way, `jump-page-mode` will be ended. You can use `jump-page-quit` to quit `jump-page-mode` at any time.
 
-# Continuous mode
+## Continuous mode
 Continuous mode stacks pages together vertically and lets users scroll down through them. `lavfi-complex` requires that the pages must be the same width in order to vertically stack them together (for horizontal stacking, they need to have the same height). Double page mode currently has logic to handle slightly mismatched page sizes using ffmpeg's `scale` filter. Currently, this not implemented in continuous mode because of the complexity of the string argument, so be sure almost all of your scan's pages have exactly the same width if you want to use this feature. Additionally, even though the `continuous_size` is configurable, you'll probably encounter some renderer error if you set the size too big.
 
 ## Configuration
