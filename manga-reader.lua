@@ -94,6 +94,7 @@ end
 
 function continuous_page(alignment, pages)
 	local index = mp.get_property_number("playlist-pos")
+	local len = mp.get_property_number("playlist-count")
 	for i=index+1,index+pages-1 do
 		local new_page = mp.get_property("playlist/"..tostring(i).."/filename")
 		local success = mp.commandv("video-add", new_page, "auto")
@@ -317,13 +318,18 @@ function last_page()
 	mp.set_property("lavfi-complex", "")
 	local len = mp.get_property_number("playlist-count")
 	local index = 0;
-	if opts.double then
+	if opts.continuous then
+		index = len - opts.continuous_size
+	elseif opts.double then
 		index = len - 2
 	else
 		index = len - 1
 	end
 	mp.set_property("playlist-pos", index);
 	change_page(0)
+	if opts.continuous then
+		mp.set_property("video-align-y", 1)
+	end
 end
 
 function pan_up()
@@ -621,10 +627,21 @@ function init()
 	mp.unregister_event(init)
 	first_start = false
 end
+
 function check_y_pos()
 	if opts.continuous then
 		local index = mp.get_property_number("playlist-pos")
-		local len = mp.get_property_number("playlist-pos")
+		local len = mp.get_property_number("playlist-count")
+		local first_chunk = false
+		if index+opts.continuous_size < 0 then
+			first_chunk = true
+		elseif index == 0 then
+			first_chunk = true
+		end
+		local last_chunk = false
+		if index+opts.continuous_size >= len - 1 then
+			last_chunk = true
+		end
 		local middle_index
 		if index == len - 1 then
 			middle_index = index - 1
@@ -640,19 +657,19 @@ function check_y_pos()
 		if y_align == -1 then
 			local height = filedims[middle_index][1]
 			local bottom_threshold = height / total_height - 1 - opts.trigger_zone
-			if y_pos < bottom_threshold then
+			if y_pos < bottom_threshold and not last_chunk then
 				next_page()
 			end
-			if y_pos > 0 then
+			if y_pos > 0 and not first_chunk then
 				prev_page()
 			end
 		elseif y_align == 1 then
 			local height = filedims[middle_index][1]
 			local top_threshold = 1 - height / total_height + opts.trigger_zone
-			if y_pos > top_threshold then
+			if y_pos > top_threshold and not first_chunk then
 				prev_page()
 			end
-			if y_pos < 0 then
+			if y_pos < 0 and not last_chunk then
 				next_page()
 			end
 		end
