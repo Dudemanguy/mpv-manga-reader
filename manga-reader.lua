@@ -583,24 +583,29 @@ function toggle_reader()
 		end
 		if not initiated then
 			set_keys()
-			change_page(0)
+			initiated = true
 			mp.osd_message("Manga Reader Started")
 			mp.set_property_bool("force-window", true)
 			mp.add_key_binding("c", "toggle-continuous-mode", toggle_continuous_mode)
 			mp.add_key_binding("d", "toggle-double-page", toggle_double_page)
 			mp.add_key_binding("m", "toggle-manga-mode", toggle_manga_mode)
 			mp.register_event("end-file", check_lavfi_complex)
-			initiated = true
+			change_page(0)
 		else
 			remove_keys()
-			change_page(0)
+			initiated = false
+			mp.unobserve_property(check_y_pos)
+			mp.set_property("video-zoom", 0)
+			mp.set_property("video-align-y", 0)
+			mp.set_property("video-pan-y", 0)
 			mp.set_property("lavfi-complex", "")
-			mp.set_property_bool("track-auto-selection", true)
+			mp.set_property_bool("force-window", false)
+			mp.remove_key_binding("toggle-continuous-mode")
 			mp.remove_key_binding("toggle-double-page")
 			mp.remove_key_binding("toggle-manga-mode")
 			mp.osd_message("Closing Reader")
 			mp.unregister_event(check_lavfi_complex)
-			initiated = false
+			change_page(0)
 		end
 	else
 		if not first_start then
