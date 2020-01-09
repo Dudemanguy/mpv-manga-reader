@@ -1,68 +1,29 @@
 require "mp.options"
 local utils = require "mp.utils"
-local detect = {
-	archive = false,
-	err = false,
-	image = false,
-	init = false,
-	p7zip = false,
-	rar = false,
-	rar_archive = false,
-	tar = false,
-	zip = false,
-}
+local ext = {".avif", ".bmp", ".gif", ".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp"}
+local first_start = true
+local filedims = {}
+local initiated = false
+local input = ""
+local jump = false
 local opts = {
 	auto_start = false,
 	continuous = false,
-	continuous_size = 4,
+	continuous_size = 8,
 	double = false,
 	manga = true,
 	monitor_height = 1080,
 	monitor_width = 1920,
-	pages = -1,
 	pan_size = 0.05,
 	skip_size = 10,
 	trigger_zone = 0.05,
-	worker = true,
 }
-local dir
-local continuous_page_names = {}
-local double_page_names = {}
-local filearray = {}
-local filedims = {}
-local first_start = true
-local index = 0
-local init_arg
-local input = ""
-local jump = false
-local length
-local names = nil
-local root
-local valid_width
-local workers = {}
-local worker_locks = {}
-local worker_init_bool = true
-local worker_length = 0
-
-function archive_extract(command, archive, first_page, last_page)
-	local extract = false
-	for i=0,length-1 do
-		if filearray[i] == first_page then
-			extract = true
-		end
-		if extract then
-			os.execute(command.." "..archive.." "..filearray[i])
-		end
-		if filearray[i] == last_page then
-			extract = false
-			break
-		end
-	end
-end
+local valid_width = {}
+local valid_height = {}
 
 function calculate_zoom_level(dims)
 	dims[0] = tonumber(dims[0])
-	dims[1] = tonumber(dims[1])
+	dims[1] = tonumber(dims[1]) * opts.continuous_size
 	local scaled_width = opts.monitor_height/dims[1] * dims[0]
 	if opts.monitor_width >= opts.continuous_size*scaled_width then
 		return opts.continuous_size
@@ -71,349 +32,175 @@ function calculate_zoom_level(dims)
 	end
 end
 
-function check_archive(path)
-	if string.find(path, "archive://") == nil then
-		return false
-	else
-		return true
-	end
-end
-
-function check_rar_archive(path)
-	if string.find(path, "rar://") == nil then
-		return false
-	else
-		return true
-	end
-end
-
-function check_aspect_ratio(a, b)
-	local m = a[0]+b[0]
-	local n
-	if a[1] > b[1] then
-		n = a[1]
-	else
-		n = b[1]
-	end
-	local aspect_ratio = opts.monitor_width / opts.monitor_height
-	if m/n <= aspect_ratio then
+function check_images()
+	local audio = mp.get_property("audio-params")
+	local frame_count = mp.get_property_number("estimated-frame-count")
+	local length = mp.get_property_number("playlist-count")
+	if audio == nil and (frame_count == 1 or frame_count == 0) and length > 1 then
 		return true
 	else
 		return false
 	end
 end
 
-function check_if_p7zip()
-	local archive = string.gsub(root, ".*/", "")
-	local p7zip = io.popen("7z t "..archive.." | grep 'Type'")
-	io.input(p7zip)
-	local str = io.read()
-	io.close()
-	if string.find(str, "Type = zip") == nil then
-		detect.p7zip = true
-		return true
-	end
-	return false
-end
-
-function check_if_rar()
-	local archive = string.gsub(root, ".*/", "")
-	local rar = io.popen("7z t "..archive.." | grep 'Type'")
-	io.input(rar)
-	local str = io.read()
-	io.close()
-	if string.find(str, "Type = Rar") or string.find(str, "Type = rar") then
-		detect.rar = true
-		return true
-	end
-	return false
-end
-
-function check_if_tar()
-	if string.find(root, "%.tar") then
-		detect.tar = true
-		return true
-	end
-	return false
-end
-
-function check_if_zip()
-	local archive = string.gsub(root, ".*/", "")
-	local zip = io.popen("zip --test "..archive)
-	io.input(zip)
-	local str = io.read()
-	io.close()
-	if string.find(str, "probably not a zip file") == nil then
-		detect.zip = true
-		return true
-	end
-	return false
-end
-
-function check_archive_type_brute()
-	local type_found
-	while not type_found do
-		type_found = check_if_zip()
-		type_found = check_if_tar()
-		type_found = check_if_rar()
-		type_found = check_if_p7zip()
-		break
-	end
-	return type_found
-end
-
-function check_archive_type()
-	local type_found
-	if string.find(root, ".zip") then
-		type_found = check_if_zip()
-	elseif string.find(root, ".tar") then
-		type_found = check_if_tar()
-	elseif string.find(root, ".rar") then
-		type_found = check_if_rar()
-	elseif string.find(root, ".7z") then
-		type_found = check_if_p7zip()
+function check_heights(index)
+	if filedims[index][1] == filedims[index+1][1] then
+		return 0
+	elseif math.abs(filedims[index][1] - filedims[index+1][1]) < 20 then
+		return 1
 	else
-		check_archive_type_brute()
-	end
-	return type_found
-end
-
-function check_image()
-	os.execute("sleep 1")
-	audio = mp.get_property("audio-params")
-	frame_count = mp.get_property("estimated-frame-count")
-	if audio == nil and (frame_count == "1" or frame_count == "0") then
-		return true
-	else
-		return false
+		return 2
 	end
 end
 
-function escape_special_characters(str)
-	str = string.gsub(str, " ", "\\ ")
-	str = string.gsub(str, "%(", "\\(")
-	str = string.gsub(str, "%)", "\\)")
-	str = string.gsub(str, "%[", "\\[")
-	str = string.gsub(str, "%]", "\\]")
-	str = string.gsub(str, "%'", "\\'")
-	str = string.gsub(str, '%"', '\\"')
-	return str
-end
-
-function file_exists(name)
-	local f = io.open(name, "r")
-	if f == nil then
-		return false
-	else
-		io.close(f)
-		return true
+function change_page(amount)
+	local old_index = mp.get_property_number("playlist-pos")
+	local len = mp.get_property_number("playlist-count")
+	local index = old_index + amount
+	if index < 0 then
+		index = 0
 	end
-end
-
-function imagemagick_attach(page_one, page_two, direction, name)
-	if opts.manga and not opts.continuous then
-		os.execute("convert "..page_two.." "..page_one.." "..direction.." "..name)
-	else
-		os.execute("convert "..page_one.." "..page_two.." "..direction.." "..name)
+	if index > len - 2 and opts.double then
+		index = len - 2
+	elseif index > len - 2 then
+		index = len - 1
 	end
-end
-
-function imagemagick_append(first_page, last_page, direction, name)
-	local append = false
-	local page_one = ""
-	local page_two = ""
-	local tmp_name = ""
-	for i=0,length-1 do
-		if filearray[i] == first_page and filearray[i+1] == last_page then
-			if not detect.archive and not detect.rar_archive then
-				page_one = utils.join_path(root, first_page)
-				page_two = utils.join_path(root, last_page)
-			else
-				page_one = first_page
-				page_two = last_page
-			end
-			imagemagick_attach(page_one, page_two, direction, name)
-			append = false
-			break
-		elseif filearray[i] == first_page then
-			append = true
-			tmp_name = generate_name(filearray[i], filearray[i+1])
-			if not detect.archive and not detect.rar_archive then
-				page_one = utils.join_path(root, filearray[i])
-				page_two = utils.join_path(root, filearray[i+1])
-			else
-				page_one = filearray[i]
-				page_two = filearray[i+1]
-			end
-			imagemagick_attach(page_one, page_two, direction, tmp_name)
-		elseif filearray[i+1] == last_page then
-			if append then
-				if not detect.archive and not detect.rar_archive then
-					page_two = utils.join_path(root, filearray[i+1])
-				else
-					page_two = filearray[i+1]
-				end
-				imagemagick_attach(tmp_name, page_two, direction, name)
-				os.execute("rm "..tmp_name)
-				append = false
-				break
-			end
+	mp.set_property("lavfi-complex", "")
+	mp.set_property("playlist-pos", index)
+	if opts.continuous and initiated then
+		local pages
+		if opts.continuous_size + index > len then
+			pages = opts.continuous_size + index - len
 		else
-			if append then
-				if not detect.archive and not detect.rar_archive then
-					page_two = utils.join_path(root, filearray[i+1])
-				else
-					page_two = filearray[i+1]
-				end
-				imagemagick_attach(tmp_name, page_two, direction, tmp_name)
-			end
+			pages = opts.continuous_size
+		end
+		if amount >= 0 then
+			continuous_page("top", pages)
+		elseif old_index == 0 and amount < 0 then
+			continuous_page("top", pages)
+		elseif amount < 0 then
+			continuous_page("bottom", pages)
 		end
 	end
+	if opts.double and initiated then
+		ret = check_heights(index)
+		if ret == 0 then
+			double_page(false)
+		elseif ret == 1 then
+			double_page(true)
+		end
+	end
+end
+
+function continuous_page(alignment, pages)
+	local index = mp.get_property_number("playlist-pos")
+	for i=index+1,index+pages-1 do
+		local new_page = mp.get_property("playlist/"..tostring(i).."/filename")
+		local success = mp.commandv("video-add", new_page, "auto")
+		while not success do
+			-- can fail on occasion so just retry until it works
+			success = mp.commandv("video-add", new_page, "auto")
+		end
+	end
+	local internal
+	for i=0,pages-1 do
+		if not mp.get_property_bool("track-list/"..tostring(i).."/external") then
+			internal = i
+		end
+	end
+	local arg = "[vid"..tostring(internal+1).."]"
+	for i=0,pages-1 do
+		if i ~= internal then
+			arg = arg.." [vid"..tostring(i+1).."]"
+		end
+	end
+	if pages > 4 then
+		set_lavfi_complex_continuous(arg, alignment, pages)
+	else
+		set_lavfi_complex_continuous_simple(arg, alignment, pages)
+	end
+end
+
+function double_page(scale)
+	local index = mp.get_property_number("playlist-pos")
+	local second_page = mp.get_property("playlist/"..tostring(index+1).."/filename")
+	local success = mp.commandv("video-add", second_page, "auto")
+	while not success do
+		-- can fail on occasion so just retry until it works
+		success = mp.commandv("video-add", second_page, "auto")
+	end
+	set_lavfi_complex_double(scale)
 end
 
 function log2(num)
 	return math.log(num)/math.log(2)
 end
 
-function strip_file_ext(str)
-	local pos = 0
-	local ext = string.byte(".")
-	for i = 1, #str do
-		if str:byte(i) == ext then
-			pos = i
+function check_lavfi_complex(event)
+	if event['error'] then
+		mp.set_property("lavfi-complex", "")
+		if opts.continuous then
+			change_page(1)
+		end
+		if opts.double then
+			local index = mp.get_property_number("playlist-pos")
+			change_page(-1)
 		end
 	end
-	if pos == 0 then
-		return str
+end
+
+function set_lavfi_complex_continuous(arg, alignment, pages)
+	local final
+	local even
+	if pages % 2 == 0 then
+		final = pages - 1
+		even = true
 	else
-		local stripped = string.sub(str, 1, pos - 1)
-		return stripped
+		final = pages - 2
+		even = false
 	end
-end
-
-function generate_name(cur_page, next_page)
-	local cur_base = string.gsub(cur_page, ".*/", "")
-	cur_base = strip_file_ext(cur_base)
-	local next_base = string.gsub(next_page, ".*/", "")
-	next_base = strip_file_ext(next_base)
-	local name = cur_base.."-"..next_base..".png"
-	return name
-end
-
-function get_filelist(path, full_path)
-	local filelist
-	if detect.rar_archive then
-		local archive = string.gsub(archive, "rar://", "")
-		filelist = io.popen("7z l -slt "..archive.. " | grep 'Path =' | grep -v "..archive.." | sed 's/Path = //g'")
-	elseif detect.archive then
-		local archive = string.gsub(path, "archive://", "")
-		if detect.p7zip then
-			filelist = io.popen("7z l -slt "..archive.. " | grep 'Path =' | grep -v "..archive.." | sed 's/Path = //g'")
-		elseif detect.rar then
-			filelist = io.popen("7z l -slt "..archive.. " | grep 'Path =' | grep -v "..archive.." | sed 's/Path = //g'")
-		elseif detect.tar then
-			filelist = io.popen("tar -tf "..archive.. " | sort")
-		elseif detect.zip then
-			filelist = io.popen("zipinfo -1 "..archive)
+	local vstack = ""
+	local split = str_split(arg, " ")
+	local total_t = pages - 2
+	local t_arr = {}
+	for i=0,total_t-1 do
+		t_arr[i] = "[t"..tostring(i+1).."]"
+	end
+	local t_index = 0
+	local t_final = {}
+	for i=0,final,2 do
+		vstack = vstack..split[i].." "..split[i+1].." vstack "..t_arr[t_index].." ; "
+		t_index = t_index + 1
+		if (i + 2) % 4 == 0 then
+			vstack = vstack..t_arr[t_index - 2].." "..t_arr[t_index - 1].." vstack "..t_arr[t_index].." ; "
+			if i+2 ~= pages then
+				if t_final[0] ~= nil then
+					vstack = vstack..t_final[0].." "..t_arr[t_index].." vstack "..t_arr[t_index+1].." ; "
+					t_index = t_index + 1
+				end
+				t_final[0] = t_arr[t_index]
+			else
+				t_final[1] = t_arr[t_index]
+			end
+			t_index = t_index + 1
 		end
+	end
+	if t_final[1] == nil then
+		t_final[1] = t_arr[total_t-1]
+	end
+	if even then
+		vstack = vstack..t_final[0].." "..t_final[1].. " vstack [vo]"
+	elseif (pages - 1) % 4 == 0 then
+		vstack = vstack..t_arr[t_index-1].." "..split[pages - 1].." vstack [vo]"
 	else
-		local exists = utils.file_info(full_path)
-		if exists ~= nil then
-			filelist = io.popen("ls "..path)
-		end
+		vstack = vstack..t_arr[t_index - 2].." "..t_arr[t_index - 1].." vstack "..t_arr[t_index].." ; "
+		vstack = vstack..t_arr[t_index].." "..split[pages - 1].." vstack [vo]"
 	end
-	return filelist
-end
-
-function get_root(path)
-	local root
-	if detect.rar_archive then
-		root = string.gsub(path, "|.*", "")
-		root = escape_special_characters(root)
-	elseif detect.archive then
-		root = string.gsub(path, "|.*", "")
-		root = escape_special_characters(root)
-	else
-		root,match = string.gsub(path, "/.*", "")
-		if match == 0 then
-			root = ""
-		end
-		root = escape_special_characters(root)
-	end
-	return root
-end
-
-function str_split(str, delim)
-	local split = {}
-	local i = 0
-	for token in string.gmatch(str, "([^"..delim.."]+)") do
-		split[i] = token
-		i = i + 1
-	end
-	return split
-end
-
-function get_dims(page)
-	local dims = {}
-	local p
-	local str
-	if detect.rar_archive then
-		local archive = string.gsub(root, "rar://", "")
-		p = io.popen("7z e -so "..archive.." "..page.." | identify -")
-		io.input(p)
-		str = io.read()
-		if str == nil then
-			dims = nil
-		else
-			local i, j = string.find(str, "[0-9]+x[0-9]+")
-			local sub = string.sub(str, i, j)
-			dims = str_split(sub, "x")
-		end
-	elseif detect.archive then
-		local archive = string.gsub(root, "archive://", "")
-		if detect.p7zip then
-			p = io.popen("7z e -so "..archive.." "..page.." | identify -")
-		elseif detect.rar then
-			p = io.popen("7z e -so "..archive.." "..page.." | identify -")
-		elseif detect.tar then
-			p = io.popen("tar -xOf "..archive.." "..page.." | identify -")
-		elseif detect.zip then
-			p = io.popen("unzip -p "..archive.." "..page.." | identify -")
-		end
-		io.input(p)
-		str = io.read()
-		if str == nil then
-			dims = nil
-		else
-			local i, j = string.find(str, "[0-9]+x[0-9]+")
-			local sub = string.sub(str, i, j)
-			dims = str_split(sub, "x")
-		end
-	else
-		local path = utils.join_path(root, page)
-		p = io.popen("identify -format '%w,%h' "..path)
-		io.input(p)
-		str = io.read()
-		io.close()
-		if str == nil then
-			dims = nil
-		else
-			dims = str_split(str, ",")
-		end
-	end
-	return dims
-end
-
-function continuous_page_load(name, alignment)
-	local p = io.popen("identify -format '%w,%h' "..name)
-	io.input(p)
-	local str = io.read()
-	io.close()
-	local dims = str_split(str, ",")
-	mp.commandv("loadfile", name, "replace")
-	mp.set_property("video-pan-y", 0)
-	local zoom_level = calculate_zoom_level(dims)
+	mp.set_property("lavfi-complex", vstack)
+	local index = mp.get_property_number("playlist-pos")
+	local zoom_level = calculate_zoom_level(filedims[index])
 	mp.set_property("video-zoom", log2(zoom_level))
+	mp.set_property("video-pan-y", 0)
 	if alignment == "top" then
 		mp.set_property("video-align-y", -1)
 	else
@@ -421,137 +208,70 @@ function continuous_page_load(name, alignment)
 	end
 end
 
-function continuous_page(alignment)
-	local top_page = filearray[index]
-	local bottom_page = filearray[index + opts.continuous_size - 1]
-	local name = generate_name(top_page, bottom_page)
-	local zoom_level
-	if file_exists(name) then
-		continuous_page_load(name, alignment)
-		return
+function set_lavfi_complex_continuous_simple(arg, alignment, pages)
+	local vstack = ""
+	local split = str_split(arg, " ")
+	local total_t = pages - 2
+	local t_arr = {}
+	for i=0,total_t-1 do
+		t_arr[i] = "[t"..tostring(i+1).."]"
 	end
-	if names == nil then
-		names = name
-	else
-		names = names.." "..name
-	end
-	if detect.rar_archive then
-		local archive = string.gsub(root, "rar://", "")
-		archive_extract("7z x", archive, top_page, bottom_page)
-	elseif detect.archive then
-		local archive = string.gsub(root, "archive://", "")
-		if detect.p7zip then
-			archive_extract("7z x", archive, top_page, bottom_page)
-		elseif detect.rar then
-			archive_extract("7z x", archive, top_page, bottom_page)
-		elseif detect.tar then
-			archive_extract("tar -xf", archive, top_page, bottom_page)
-		elseif detect.zip then
-			archive_extract("unzip -o", archive, top_page, bottom_page)
+	local t_index = 0
+	if pages == 4 then
+		for i=0,pages-1,2 do
+			vstack = vstack..split[i].." "..split[i+1].." vstack "..t_arr[t_index].." ; "
+			t_index = t_index + 1
 		end
+		vstack = vstack.."[t1] [t2] vstack [vo]"
+	elseif pages == 3 then
+		vstack = vstack..split[0].." "..split[1].." vstack [t1] ; "
+		vstack = vstack.."[t1] "..split[2].." vstack [vo]"
+	elseif pages == 2 then
+		vstack = vstack..split[0].." "..split[1].." vstack [vo]"
 	end
-	imagemagick_append(top_page, bottom_page, "-append", name)
-	if detect.archive or detect.rar_archive then
-		os.execute("rm "..top_page.." "..bottom_page)
-	end
-	continuous_page_load(name, alignment)
-end
-
-function double_page()
-	local cur_page = filearray[index]
-	local next_page = filearray[index + 1]
-	local name = generate_name(cur_page, next_page)
-	if file_exists(name) then
-		mp.commandv("loadfile", name, "replace")
-		return
-	end
-	if names == nil then
-		names = name
+	mp.set_property("lavfi-complex", vstack)
+	local index = mp.get_property_number("playlist-pos")
+	local zoom_level = calculate_zoom_level(filedims[index])
+	mp.set_property("video-zoom", log2(zoom_level))
+	mp.set_property("video-pan-y", 0)
+	if alignment == "top" then
+		mp.set_property("video-align-y", -1)
 	else
-		names = names.." "..name
-	end
-	if detect.rar_archive then
-		local archive = string.gsub(root, "rar://", "")
-		archive_extract("7z x", archive, cur_page, next_page)
-	elseif detect.archive then
-		local archive = string.gsub(root, "archive://", "")
-		if detect.p7zip then
-			archive_extract("7z x", archive, cur_page, next_page)
-		elseif detect.rar then
-			archive_extract("7z x", archive, cur_page, next_page)
-		elseif detect.tar then
-			archive_extract("tar -xf", archive, cur_page, next_page)
-		elseif detect.zip then
-			archive_extract("unzip -o", archive, cur_page, next_page)
-		end
-	end
-	imagemagick_append(cur_page, next_page, "+append", name)
-	if detect.archive or detect.rar_archive then
-		os.execute("rm "..cur_page.." "..next_page)
-	end
-	mp.commandv("loadfile", name, "replace")
-end
-
-function single_page()
-	local page = filearray[index]
-	if detect.rar_archive then
-		local noescaperoot = string.gsub(root, "\\", "")
-		local noescapepage = string.gsub(page, "\\", "")
-		local switchslash = string.gsub(noescapepage, "/", "\\")
-		mp.commandv("loadfile", noescaperoot.."|/"..switchslash, "replace")
-	elseif detect.archive then
-		local noescaperoot = string.gsub(root, "\\", "")
-		local noescapepage = string.gsub(page, "\\", "")
-		mp.commandv("loadfile", noescaperoot.."|/"..noescapepage, "replace")
-	else
-		local path = utils.join_path(root, page)
-		path = string.gsub(path, "\\", "")
-		mp.commandv("loadfile", path, "replace")
+		mp.set_property("video-align-y", 1)
 	end
 end
 
-function change_page(amount)
-	index = index + amount
-	if index < 0 then
-		index = 0
-		change_page(0)
-		return
+function set_lavfi_complex_double(scale)
+	-- video track ids load unpredictably so check which one is external
+	local external = mp.get_property_bool("track-list/1/external")
+	local index = mp.get_property_number("playlist-pos")
+	local vid2 = "[vid2]"
+	local hstack
+	if scale then
+		vid2 = "[vid2_scale]"
 	end
-	if opts.continuous then
-		if index > length - opts.continuous_size then
-			index = length - opts.continuous_size
-		end
-		if amount >= 0 then
-			continuous_page("top")
-		elseif amount < 0 then
-			continuous_page("bottom")
-		end
-	elseif opts.double then
-		if index > length - 2 then
-			index = length - 2
-		end
-		valid_width = check_aspect_ratio(filedims[index], filedims[index+1])
-		if not valid_width then
-			if amount < -1 then
-				index = index + 1
-			end
-			single_page()
+	if external then
+		if opts.manga then
+			hstack = vid2.." [vid1] hstack [vo]"
 		else
-			double_page()
+			hstack = "[vid1] "..vid2.." hstack [vo]"
 		end
 	else
-		if index > length - 1 then
-			index = length - 1
+		if opts.manga then
+			hstack = "[vid1] "..vid2.." hstack [vo]"
+		else
+			hstack = vid2.." [vid1] hstack [vo]"
 		end
-		single_page()
 	end
-	if opts.worker then
-		update_worker_index(workers)
+	if scale then
+		hstack = "[vid2] scale="..filedims[index][0].."x"..filedims[index][1]..":flags=spline [vid2_scale]; "..hstack
 	end
+	mp.set_property("lavfi-complex", hstack)
 end
 
 function next_page()
-	if opts.double and valid_width then
+	local index = mp.get_property_number("playlist-pos")
+	if opts.double and valid_width[index] then
 		change_page(2)
 	elseif opts.continuous then
 		change_page(opts.continuous_size)
@@ -561,7 +281,8 @@ function next_page()
 end
 
 function prev_page()
-	if opts.double then
+	local index = mp.get_property_number("playlist-pos")
+	if opts.double and valid_width[index] then
 		change_page(-2)
 	elseif opts.continuous then
 		change_page(-opts.continuous_size)
@@ -587,16 +308,21 @@ function skip_backward()
 end
 
 function first_page()
-	index = 0
+	mp.set_property("lavfi-complex", "")
+	mp.set_property("playlist-pos", 0);
 	change_page(0)
 end
 
 function last_page()
+	mp.set_property("lavfi-complex", "")
+	local len = mp.get_property_number("playlist-count")
+	local index = 0;
 	if opts.double then
-		index = length - 2
+		index = len - 2
 	else
-		index = length - 1
+		index = len - 1
 	end
+	mp.set_property("playlist-pos", index);
 	change_page(0)
 end
 
@@ -665,9 +391,11 @@ end
 
 function jump_page_go()
 	local dest = tonumber(input) - 1
+	local len = mp.get_property_number("playlist-count")
+	local index = mp.get_property_number("playlist-pos")
 	input = ""
 	mp.osd_message("")
-	if (dest > length - 1) or (dest < 0) then
+	if (dest > len - 1) or (dest < 0) then
 		mp.osd_message("Specified page does not exist")
 	else
 		local amount = dest - index
@@ -747,114 +475,150 @@ function set_keys()
 	mp.add_forced_key_binding("/", "jump-page-mode", jump_page_mode)
 end
 
-function startup_msg()
-	if detect.image and not detect.err then
-		mp.osd_message("Manga Reader Started")
-	elseif detect.archive and detect.err then
-		mp.osd_message("Archive type not supported")
+function remove_keys()
+	mp.remove_key_binding("next-page")
+	mp.remove_key_binding("prev-page")
+	mp.remove_key_binding("next-single-page")
+	mp.remove_key_binding("prev-single-page")
+	mp.remove_key_binding("skip-forward")
+	mp.remove_key_binding("skip-backward")
+	mp.remove_key_binding("pan-up")
+	mp.remove_key_binding("pan-down")
+	mp.remove_key_binding("first-page")
+	mp.remove_key_binding("last-page")
+	mp.remove_key_binding("jump-page-mode")
+end
+
+function remove_non_images()
+	local length = mp.get_property_number("playlist-count")
+	for i=0,length-1 do
+		local name = mp.get_property("playlist/"..tostring(i).."/filename")
+		local sub = string.sub(name, -5)
+		local match = false
+		for j=1,7 do
+			if string.match(sub, ext[j]) then
+				match = true
+				break
+			end
+		end
+		if not match then
+			mp.commandv("playlist-remove", i)
+		end
+	end
+end
+
+function fill_width_height_array()
+	local length = mp.get_property_number("playlist-count")
+	for i=0,length-2 do
+		if filedims[i][0] == filedims[i+1][0] then
+			valid_width[i] = true
+		else
+			valid_width[i] = false
+		end
+		if filedims[i][1] == filedims[i+1][1] then
+			valid_height[i] = true
+		else
+			valid_height[i] = false
+		end
+	end
+end
+
+function sleep(seconds)
+	local time = os.clock() + seconds
+	repeat until os.clock() > time
+end
+
+function store_image_dims()
+	mp.set_property("brightness", -100)
+	mp.set_property("contrast", -100)
+	mp.set_property_bool("really-quiet", true)
+	local length = mp.get_property_number("playlist-count")
+	for i=0,length-1 do
+		local dims = {}
+		local width = mp.get_property_number("width")
+		while width == nil do
+			width = mp.get_property_number("width")
+		end
+		local height = mp.get_property_number("height")
+		while height == nil do
+			height = mp.get_property_number("height")
+		end
+		dims[0] = width
+		dims[1] = height
+		filedims[i] = dims
+		mp.commandv("playlist-next")
+		--hack a sleep in here so the properties load correctly
+		sleep(0.001)
+	end
+	mp.set_property("playlist-pos", 0)
+	mp.set_property("brightness", 0)
+	mp.set_property("contrast", 0)
+	mp.set_property_bool("really-quiet", false)
+end
+
+function str_split(str, delim)
+	local split = {}
+	local i = 0
+	for token in string.gmatch(str, "([^"..delim.."]+)") do
+		split[i] = token
+		i = i + 1
+	end
+	return split
+end
+
+function toggle_reader()
+	local image = check_images()
+	if image then
+		remove_non_images()
+		if filedims[0] == nil then
+			store_image_dims()
+		end
+		if valid_width[0] == nil then
+			fill_width_height_array()
+		end
+		if opts.continuous then
+			opts.double = false
+			opts.continuous = true
+			mp.observe_property("video-pan-y", number, check_y_pos)
+		end
+		if not initiated then
+			set_keys()
+			change_page(0)
+			mp.osd_message("Manga Reader Started")
+			mp.set_property_bool("force-window", true)
+			mp.add_key_binding("c", "toggle-continuous-mode", toggle_continuous_mode)
+			mp.add_key_binding("d", "toggle-double-page", toggle_double_page)
+			mp.add_key_binding("m", "toggle-manga-mode", toggle_manga_mode)
+			mp.register_event("end-file", check_lavfi_complex)
+			initiated = true
+		else
+			remove_keys()
+			change_page(0)
+			mp.set_property("lavfi-complex", "")
+			mp.set_property_bool("track-auto-selection", true)
+			mp.remove_key_binding("toggle-double-page")
+			mp.remove_key_binding("toggle-manga-mode")
+			mp.osd_message("Closing Reader")
+			mp.unregister_event(check_lavfi_complex)
+			initiated = false
+		end
 	else
-		if (not first_start and opts.auto_start) or 
-			(not opts.auto_start) then
+		if not first_start then
 			mp.osd_message("Not an image")
 		end
 	end
+end
+
+function init()
+	if opts.auto_start then
+		toggle_reader()
+	end
+	mp.unregister_event(init)
 	first_start = false
 end
-
-function remove_tmp_files()
-	if names ~= nil then
-		os.execute("rm "..names.." &>/dev/null")
-	end
-	if dir ~= nil and utils.file_info(dir) then
-		dir = escape_special_characters(dir)
-		os.execute("rm -r "..dir.." &>/dev/null")
-	end
-end
-
-function remove_tmp_files_no_shutdown()
-	if names ~= nil then
-		os.execute("rm "..names.." &>/dev/null")
-	end
-	if dir ~= nil and utils.file_info(dir) then
-		dir = escape_special_characters(dir)
-		os.execute("rm -r "..dir.." &>/dev/null")
-	end
-end
-
-function remove_worker_locks()
-	local i = 1
-	while workers[i] do
-		if file_exists(worker_locks[i]) then
-			os.execute("rm "..worker_locks[i])
-		end
-		i = i + 1
-	end
-end
-
-function init_workers(workers)
-	local i = 1
-	while workers[i] do
-		local name = strip_file_ext(workers[i])
-		name = string.gsub(name, "-", "_")
-		mp.commandv("script-message-to", name, "init-worker", tostring(detect.archive), 
-                    tostring(detect.rar_archive), tostring(detect.p7zip), tostring(detect.rar),
-					tostring(detect.tar), tostring(detect.zip), root)
-		i = i + 1
-	end
-end
-
-function double_page_names_workers(workers)
-	for key,value in pairs(double_page_names) do
-		worker_index = math.fmod(key, worker_length) + 1
-		local name = strip_file_ext(workers[worker_index])
-		name = string.gsub(name, "-", "_")
-		mp.commandv("script-message-to", name, "double-page-name-worker", tostring(value))
-	end
-end
-
-function continuous_page_names_workers(workers)
-	for key,value in pairs(continuous_page_names) do
-		worker_index = math.fmod(key, worker_length) + 1
-		local name = strip_file_ext(workers[worker_index])
-		name = string.gsub(name, "-", "_")
-		mp.commandv("script-message-to", name, "continuous-page-name-worker", tostring(value))
-	end
-end
-
-function execute_workers(workers)
-	local i = 1
-	while workers[i] do
-		local name = strip_file_ext(workers[i])
-		name = string.gsub(name, "-", "_")
-		mp.commandv("script-message-to", name, "execute-worker", tostring(worker_locks[i]))
-		i = i + 1
-	end
-end
-
-function update_worker_bools(workers)
-	local i = 1
-	while workers[i] do
-		local name = strip_file_ext(workers[i])
-		name = string.gsub(name, "-", "_")
-		mp.commandv("script-message-to", name, "update-bools", tostring(opts.continuous), tostring(opts.manga),
-					tostring(true), tostring(opts.worker))
-		i = i +1
-	end
-	remove_worker_locks()
-end
-
-function update_worker_index(workers)
-	local i = 1
-	while workers[i] do
-		local name = strip_file_ext(workers[i])
-		name = string.gsub(name, "-", "_")
-		mp.commandv("script-message-to", name, "worker-index", tostring(index))
-		i = i + 1
-	end
-end
-
 function check_y_pos()
 	if opts.continuous then
+		local index = mp.get_property_number("playlist-pos")
 		local total_height = mp.get_property("height")
 		if total_height == nil then
 			return
@@ -862,9 +626,9 @@ function check_y_pos()
 		local y_pos = mp.get_property_number("video-pan-y")
 		local y_align = mp.get_property_number("video-align-y")
 		if y_align == -1 then
-			local bottom_index = index + opts.continuous_size - 1
-			local bottom_height = filedims[bottom_index][1]
-			local bottom_threshold = bottom_height / total_height - 1 - opts.trigger_zone
+			local middle_index = index + opts.continuous_size - math.floor(opts.continuous_size/2)
+			local height = filedims[middle_index][1]
+			local bottom_threshold = height / total_height - 1 - opts.trigger_zone
 			if y_pos < bottom_threshold then
 				next_page()
 			end
@@ -872,9 +636,9 @@ function check_y_pos()
 				prev_page()
 			end
 		elseif y_align == 1 then
-			local top_index = index
-			local top_height = filedims[top_index][1]
-			local top_threshold = 1 - top_height / total_height + opts.trigger_zone
+			local middle_index = index + opts.continuous_size - math.floor(opts.continuous_size/2)
+			local height = filedims[middle_index][1]
+			local top_threshold = 1 - height / total_height + opts.trigger_zone
 			if y_pos > top_threshold then
 				prev_page()
 			end
@@ -899,10 +663,6 @@ function toggle_continuous_mode()
 		opts.continuous = true
 		mp.observe_property("video-pan-y", number, check_y_pos)
 	end
-	if workers[1] then
-		update_worker_bools(workers)
-		execute_workers(workers)
-	end
 	change_page(0)
 end
 
@@ -914,10 +674,6 @@ function toggle_double_page()
 		mp.osd_message("Double Page Mode On")
 		opts.continuous = false
 		opts.double = true
-	end
-	if workers[1] then
-		update_worker_bools(workers)
-		execute_workers(workers)
 	end
 	change_page(0)
 end
@@ -931,195 +687,9 @@ function toggle_manga_mode()
 		opts.manga = true
 	end
 	set_keys()
-	remove_tmp_files_no_shutdown()
-	if workers[1] then
-		update_worker_bools(workers)
-	end
-	names = nil
 	change_page(0)
 end
 
-function toggle_worker()
-	if opts.worker and workers[1] then
-		opts.worker = false
-		mp.osd_message("Stopping Workers")
-		remove_worker_locks()
-	elseif not workers [1] then
-		opts.worker = false
-		mp.osd_message("No workers found. Nothing to toggle!")
-	else
-		opts.worker = true
-		mp.osd_message("Starting Workers")
-	end
-	if workers[1] then
-		update_worker_bools(workers)
-	end
-end
-
-function setup_init_values()
-	local home = io.popen("echo $HOME")
-	io.input(home)
-	local home_dir = io.read()
-	io.close()
-	local script_dir = mp.get_property("config-dir")
-	if script_dir == "" then
-		local cfg_dir = ".config/mpv/scripts"
-		script_dir = utils.join_path(home_dir, cfg_dir)
-	else
-		script_dir = utils.join_path(script_dir, "scripts")
-	end
-	local scripts = utils.readdir(script_dir)
-	local i = 1
-	while scripts[i] do
-		if string.find(scripts[i], "manga-worker", 0, true) then
-			workers[i] = scripts[i]
-			worker_length = worker_length + 1
-			local name = strip_file_ext(workers[i])
-			name = string.gsub(name, "-", "_")
-			name = name..".lock"
-			worker_locks[i] = name
-		end
-		i = i + 1
-	end
-	worker_init_bool = opts.worker
-	local path = mp.get_property("path")
-	if (opts.auto_start) then
-		mp.unregister_event(toggle_reader)
-	end
-	detect.rar_archive = check_rar_archive(path)
-	if not detect.rar_archive then
-		detect.archive = check_archive(path)
-	end
-	root = get_root(path)
-	if root == "" then
-		detect.err = true
-		return
-	end
-	if detect.rar_archive then
-		dir = string.gsub(path, ".*|", "")
-		dir = string.gsub(dir, "\\.*", "")
-		init_arg = string.gsub(root, ".*/", "")
-		init_arg = string.gsub(init_arg, "\\", "")
-	elseif detect.archive then
-		local type_found = check_archive_type()
-		if not type_found then
-			detect.err = true
-			toggle_reader()
-			return
-		end
-		dir = string.gsub(path, ".*|", "")
-		dir = string.sub(dir, 2)
-		dir = string.gsub(dir, "/.*", "")
-		init_arg = string.gsub(root, ".*/", "") 
-		init_arg = string.gsub(init_arg, "\\", "")
-	else
-		init_arg = root
-		init_arg = string.gsub(init_arg, "\\", "")
-	end
-	local filelist = get_filelist(root, path)
-	if filelist == nil then
-		mp.unregister_event(setup_init_values)
-		return
-	end
-	i = 0
-	for filename in filelist:lines() do
-		filename = escape_special_characters(filename)
-		local dims = get_dims(filename)
-		if dims ~= nil then
-			filearray[i] = filename
-			filedims[i] = dims
-			i = i + 1
-		end
-	end
-	filelist:close()
-	length = i
-	for i=0,length-2 do
-		double_page_names[i] = generate_name(filearray[i], filearray[i+1])
-	end
-	for i=0,length-1 do
-		if i+opts.continuous_size - 1 > length - 1 then
-			continuous_page_names[i] = generate_name(filearray[i], filearray[length-1])
-			break
-		end
-		continuous_page_names[i] = generate_name(filearray[i], filearray[i+opts.continuous_size-1])
-	end
-	mp.unregister_event(setup_init_values)
-end
-
-function close_manga_reader()
-	if detect.init then
-		mp.remove_key_binding("next-page")
-		mp.remove_key_binding("prev-page")
-		mp.remove_key_binding("next-single-page")
-		mp.remove_key_binding("prev-single-page")
-		mp.remove_key_binding("skip-forward")
-		mp.remove_key_binding("skip-backward")
-		mp.remove_key_binding("pan-up")
-		mp.remove_key_binding("pan-down")
-		mp.remove_key_binding("first-page")
-		mp.remove_key_binding("last-page")
-		mp.remove_key_binding("jump-page-mode")
-	end
-	if not detect.err and detect.image then
-		mp.commandv("loadfile", init_arg, "replace")
-	end
-	opts.worker = false
-	if workers[1] then
-		update_worker_bools(workers)
-	end
-end
-
-function start_manga_reader()
-	set_keys()
-	if worker_init_bool then
-		opts.worker = true
-	end
-	if opts.continuous then
-		opts.double = false
-		opts.continuous = true
-		mp.observe_property("video-pan-y", number, check_y_pos)
-	end
-	update_worker_bools(workers)
-	if workers[1] then
-		init_workers(workers)
-		double_page_names_workers(workers)
-		continuous_page_names_workers(workers)
-		execute_workers(workers)
-	end
-	mp.set_property_bool("osc", false)
-	mp.set_property_bool("idle", true)
-	mp.add_key_binding("a", "toggle-worker", toggle_worker)
-	mp.add_key_binding("c", "toggle-continuous-mode", toggle_continuous_mode)
-	mp.add_key_binding("d", "toggle-double-page", toggle_double_page)
-	mp.add_key_binding("m", "toggle-manga-mode", toggle_manga_mode)
-	index = 0
-	change_page(0)
-end
-
-function toggle_reader()
-	if detect.init then
-		close_manga_reader()
-		detect.init = false
-		mp.osd_message("Closing Reader")
-	else
-		detect.image = check_image()
-		if detect.image then
-			detect.init = true
-			start_manga_reader()
-		end
-		startup_msg()
-	end
-end
-
-function mpv_close()
-	close_manga_reader()
-	remove_tmp_files()
-end
-
-mp.register_event("file-loaded", setup_init_values)
-mp.register_event("shutdown", mpv_close)
-mp.add_key_binding("y", "toggle-manga-reader", toggle_reader)
+mp.register_event("file-loaded", init)
+mp.add_key_binding("y", "toggle-reader", toggle_reader)
 read_options(opts, "manga-reader")
-if opts.auto_start then
-	mp.register_event("file-loaded", toggle_reader)
-end
