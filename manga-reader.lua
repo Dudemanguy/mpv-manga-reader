@@ -21,12 +21,12 @@ local opts = {
 local valid_width = {}
 local valid_height = {}
 
-function calculate_zoom_level(dims)
+function calculate_zoom_level(dims, pages)
 	dims[0] = tonumber(dims[0])
 	dims[1] = tonumber(dims[1]) * opts.continuous_size
 	local scaled_width = opts.monitor_height/dims[1] * dims[0]
 	if opts.monitor_width >= opts.continuous_size*scaled_width then
-		return opts.continuous_size
+		return pages
 	else
 		return opts.monitor_width / scaled_width
 	end
@@ -198,7 +198,7 @@ function set_lavfi_complex_continuous(arg, alignment, pages)
 	end
 	mp.set_property("lavfi-complex", vstack)
 	local index = mp.get_property_number("playlist-pos")
-	local zoom_level = calculate_zoom_level(filedims[index])
+	local zoom_level = calculate_zoom_level(filedims[index], pages)
 	mp.set_property("video-zoom", log2(zoom_level))
 	mp.set_property("video-pan-y", 0)
 	if alignment == "top" then
@@ -231,7 +231,7 @@ function set_lavfi_complex_continuous_simple(arg, alignment, pages)
 	end
 	mp.set_property("lavfi-complex", vstack)
 	local index = mp.get_property_number("playlist-pos")
-	local zoom_level = calculate_zoom_level(filedims[index])
+	local zoom_level = calculate_zoom_level(filedims[index], pages)
 	mp.set_property("video-zoom", log2(zoom_level))
 	mp.set_property("video-pan-y", 0)
 	if alignment == "top" then
@@ -619,6 +619,13 @@ end
 function check_y_pos()
 	if opts.continuous then
 		local index = mp.get_property_number("playlist-pos")
+		local len = mp.get_property_number("playlist-pos")
+		local middle_index
+		if index == len - 1 then
+			middle_index = index - 1
+		else
+			middle_index = index + 1
+		end
 		local total_height = mp.get_property("height")
 		if total_height == nil then
 			return
@@ -626,7 +633,6 @@ function check_y_pos()
 		local y_pos = mp.get_property_number("video-pan-y")
 		local y_align = mp.get_property_number("video-align-y")
 		if y_align == -1 then
-			local middle_index = index + opts.continuous_size - math.floor(opts.continuous_size/2)
 			local height = filedims[middle_index][1]
 			local bottom_threshold = height / total_height - 1 - opts.trigger_zone
 			if y_pos < bottom_threshold then
@@ -636,7 +642,6 @@ function check_y_pos()
 				prev_page()
 			end
 		elseif y_align == 1 then
-			local middle_index = index + opts.continuous_size - math.floor(opts.continuous_size/2)
 			local height = filedims[middle_index][1]
 			local top_threshold = 1 - height / total_height + opts.trigger_zone
 			if y_pos > top_threshold then
