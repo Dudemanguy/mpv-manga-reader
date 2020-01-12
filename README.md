@@ -13,7 +13,6 @@ By default, starting mpv-manga-reader is bound to `y`. When starting the reader,
 * toggle-double-page: `d`
 * toggle-continuous-mode: `c`
 * toggle-manga-mode: `m`
-* toggle-worker: `a`
 * next-page: `LEFT`
 * prev-page: `RIGHT`
 * next-single-page: `Shift+LEFT`
@@ -37,7 +36,7 @@ The `jump-page` functions work a little bit differently than the rest of the rea
 Continuous mode stacks pages together vertically and lets users scroll down through them. `lavfi-complex` requires that the pages must be the same width in order to vertically stack them together (for horizontal stacking, they need to have the same height). Double page mode currently has logic to handle slightly mismatched page sizes using ffmpeg's `scale` filter. Currently, this not implemented in continuous mode because of the complexity of the string argument, so be sure almost all of your scan's pages have exactly the same width if you want to use this feature. Additionally, even though the `continuous_size` is configurable, you'll probably encounter some renderer error if you set the size too big.
 
 ## Configuration
-`manga-reader.lua` and all copies of `manga-worker.lua` read configurations from `manga-reader.conf` in your `script-opts` directory. The format for the file is `foo=value`. Here are the available options and their defaults.
+`manga-reader.lua` reads its configuration from `manga-reader.conf` in your `script-opts` directory. The format for the file is `foo=value`. Here are the available options and their defaults.
 
 ``auto_start``\
 Defaults to `no`. Automatically start the reader if valid images are detected.
