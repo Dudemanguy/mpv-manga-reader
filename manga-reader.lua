@@ -497,11 +497,12 @@ end
 
 function remove_non_images()
 	local length = mp.get_property_number("playlist-count")
-	for i=0,length-1 do
-		local name = mp.get_property("playlist/"..tostring(i).."/filename")
+	local i = 0
+	local name = mp.get_property("playlist/"..tostring(i).."/filename")
+	while name ~= nil do
 		local sub = string.sub(name, -5)
 		local match = false
-		for j=1,7 do
+		for j=1,9 do
 			if string.match(sub, ext[j]) then
 				match = true
 				break
@@ -510,6 +511,8 @@ function remove_non_images()
 		if not match then
 			mp.commandv("playlist-remove", i)
 		end
+		i = i + 1
+		name = mp.get_property("playlist/"..tostring(i).."/filename")
 	end
 end
 
