@@ -125,11 +125,7 @@ function continuous_page(alignment, pages)
 			arg = arg.." [vid"..tostring(i+1).."]"
 		end
 	end
-	if pages > 4 then
-		set_lavfi_complex_continuous(arg, alignment, pages)
-	else
-		set_lavfi_complex_continuous_simple(arg, alignment, pages)
-	end
+	set_lavfi_complex_continuous(arg, alignment, pages)
 end
 
 function double_page(scale)
@@ -161,85 +157,12 @@ function check_lavfi_complex(event)
 end
 
 function set_lavfi_complex_continuous(arg, alignment, pages)
-	local final
-	local even
-	if pages % 2 == 0 then
-		final = pages - 1
-		even = true
-	else
-		final = pages - 2
-		even = false
-	end
 	local vstack = ""
 	local split = str_split(arg, " ")
-	local total_t = pages - 2
-	local t_arr = {}
-	for i=0,total_t-1 do
-		t_arr[i] = "[t"..tostring(i+1).."]"
+	for i=0,pages - 1 do
+		vstack = vstack..split[i].." "
 	end
-	local t_index = 0
-	local t_final = {}
-	for i=0,final,2 do
-		vstack = vstack..split[i].." "..split[i+1].." vstack "..t_arr[t_index].." ; "
-		t_index = t_index + 1
-		if (i + 2) % 4 == 0 then
-			vstack = vstack..t_arr[t_index - 2].." "..t_arr[t_index - 1].." vstack "..t_arr[t_index].." ; "
-			if i+2 ~= pages then
-				if t_final[0] ~= nil then
-					vstack = vstack..t_final[0].." "..t_arr[t_index].." vstack "..t_arr[t_index+1].." ; "
-					t_index = t_index + 1
-				end
-				t_final[0] = t_arr[t_index]
-			else
-				t_final[1] = t_arr[t_index]
-			end
-			t_index = t_index + 1
-		end
-	end
-	if t_final[1] == nil then
-		t_final[1] = t_arr[total_t-1]
-	end
-	if even then
-		vstack = vstack..t_final[0].." "..t_final[1].. " vstack [vo]"
-	elseif (pages - 1) % 4 == 0 then
-		vstack = vstack..t_arr[t_index-1].." "..split[pages - 1].." vstack [vo]"
-	else
-		vstack = vstack..t_arr[t_index - 2].." "..t_arr[t_index - 1].." vstack "..t_arr[t_index].." ; "
-		vstack = vstack..t_arr[t_index].." "..split[pages - 1].." vstack [vo]"
-	end
-	mp.set_property("lavfi-complex", vstack)
-	local index = mp.get_property_number("playlist-pos")
-	local zoom_level = calculate_zoom_level(filedims[index], pages)
-	mp.set_property("video-zoom", log2(zoom_level))
-	mp.set_property("video-pan-y", 0)
-	if alignment == "top" then
-		mp.set_property("video-align-y", -1)
-	else
-		mp.set_property("video-align-y", 1)
-	end
-end
-
-function set_lavfi_complex_continuous_simple(arg, alignment, pages)
-	local vstack = ""
-	local split = str_split(arg, " ")
-	local total_t = pages - 2
-	local t_arr = {}
-	for i=0,total_t-1 do
-		t_arr[i] = "[t"..tostring(i+1).."]"
-	end
-	local t_index = 0
-	if pages == 4 then
-		for i=0,pages-1,2 do
-			vstack = vstack..split[i].." "..split[i+1].." vstack "..t_arr[t_index].." ; "
-			t_index = t_index + 1
-		end
-		vstack = vstack.."[t1] [t2] vstack [vo]"
-	elseif pages == 3 then
-		vstack = vstack..split[0].." "..split[1].." vstack [t1] ; "
-		vstack = vstack.."[t1] "..split[2].." vstack [vo]"
-	elseif pages == 2 then
-		vstack = vstack..split[0].." "..split[1].." vstack [vo]"
-	end
+	vstack = vstack.."vstack=inputs="..tostring(pages).." [vo]"
 	mp.set_property("lavfi-complex", vstack)
 	local index = mp.get_property_number("playlist-pos")
 	local zoom_level = calculate_zoom_level(filedims[index], pages)
