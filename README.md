@@ -32,9 +32,6 @@ Keybindings can all be changed in input.conf in the usual way (i.e. `key script-
 ## jump-page
 The `jump-page` functions work a little bit differently than the rest of the reader. Pressing `jump-page-mode` will do some key rebinds and then prompt the user with a message asking which page to move to. Simply press any combination of numbers followed by `jump-page-go` to move to the desired page. If the entered number is out of range, a message will be displayed. Either way, `jump-page-mode` will be ended. You can use `jump-page-quit` to quit `jump-page-mode` at any time.
 
-## Continuous mode
-Continuous mode stacks pages together vertically and lets users scroll down through them. `lavfi-complex` requires that the pages must be the same width in order to vertically stack them together (for horizontal stacking, they need to have the same height). Double page mode currently has logic to handle slightly mismatched page sizes using ffmpeg's `scale` filter. Currently, this not implemented in continuous mode because of the complexity of the string argument, so be sure almost all of your scan's pages have exactly the same width if you want to use this feature. Additionally, even though the `continuous_size` is configurable, you'll probably encounter some renderer error if you set the size too big.
-
 ## Configuration
 `manga-reader.lua` reads its configuration from `manga-reader.conf` in your `script-opts` directory. The format for the file is `foo=value`. Here are the available options and their defaults.
 
@@ -45,7 +42,7 @@ Defaults to `no`. Automatically start the reader if valid images are detected.
 Defaults to `no`. Tells the manga reader whether or not to start in continuous mode. This is mutually exclusive with double page mode.
 
 ``continuous_size``\
-Defaults to `8`. This is the amount of pages stacked together for each chunk in continuous mode.
+Defaults to `8`. This is the amount of pages stacked together for each chunk in continuous mode. Note that you will probably encounter a render error if you set the size too large.
 
 ``double``\
 Defaults to `no`. Tells the manga reader whether or not to start in double page mode. This is mutually exclusive with continuous mode.

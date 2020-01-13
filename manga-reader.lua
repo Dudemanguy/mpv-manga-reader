@@ -159,7 +159,16 @@ end
 function set_lavfi_complex_continuous(arg, alignment, pages)
 	local vstack = ""
 	local split = str_split(arg, " ")
-	for i=0,pages - 1 do
+	local index = mp.get_property_number("playlist-pos")
+	local max_width = find_max_width(split, pages)
+	for i=0,pages-1 do
+		if filedims[index+i][0] ~= max_width then
+			local split_pad = string.gsub(split[i], "]", "_pad]")
+			vstack = vstack..split[i].." pad="..max_width..":"..filedims[index+i][1]..":"..tostring((max_width - filedims[index+i][0])/2)..":"..filedims[index+i][1].." "..split_pad.."; "
+			split[i] = split_pad
+		end
+	end
+	for i=0,pages-1 do
 		vstack = vstack..split[i].." "
 	end
 	vstack = vstack.."vstack=inputs="..tostring(pages).." [vo]"
@@ -468,6 +477,17 @@ function fill_width_height_array()
 			same_height[i] = 2
 		end
 	end
+end
+
+function find_max_width(split, pages)
+	local index = mp.get_property_number("playlist-pos")
+	local max_width = 0
+	for i=0,pages-1 do
+		if filedims[index+i][0] > max_width then
+			max_width = filedims[index+i][0]
+		end
+	end
+	return max_width
 end
 
 function sleep(seconds)
