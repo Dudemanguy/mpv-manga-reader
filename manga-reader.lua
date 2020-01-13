@@ -555,9 +555,11 @@ function store_image_dims()
 		dims[0] = width
 		dims[1] = height
 		filedims[i] = dims
+		height = nil
+		width = nil
 		mp.commandv("playlist-next")
 		--hack a sleep in here so the properties load correctly
-		sleep(0.001)
+		sleep(0.05)
 	end
 	mp.set_property("playlist-pos", 0)
 	mp.set_property("brightness", 0)
