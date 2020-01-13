@@ -18,8 +18,9 @@ local opts = {
 	skip_size = 10,
 	trigger_zone = 0.05,
 }
+local same_width = {}
+local same_height = {}
 local valid_width = {}
-local valid_height = {}
 
 function calculate_zoom_level(dims, pages)
 	dims[0] = tonumber(dims[0])
@@ -32,6 +33,24 @@ function calculate_zoom_level(dims, pages)
 	end
 end
 
+function check_aspect_ratio(index)
+	local a = filedims[index]
+	local b = filedims[index+1]
+	local m = a[0]+b[0]
+	local n
+	if a[1] > b[1] then
+		n = a[1]
+	else
+		n = b[1]
+	end
+	local aspect_ratio = opts.monitor_width / opts.monitor_height
+	if m/n <= aspect_ratio then
+		return true
+	else
+		return false
+	end
+end
+
 function check_images()
 	local audio = mp.get_property("audio-params")
 	local frame_count = mp.get_property_number("estimated-frame-count")
@@ -40,16 +59,6 @@ function check_images()
 		return true
 	else
 		return false
-	end
-end
-
-function check_heights(index)
-	if filedims[index][1] == filedims[index+1][1] then
-		return 0
-	elseif math.abs(filedims[index][1] - filedims[index+1][1]) < 20 then
-		return 1
-	else
-		return 2
 	end
 end
 
@@ -83,11 +92,12 @@ function change_page(amount)
 		end
 	end
 	if opts.double and initiated then
-		ret = check_heights(index)
-		if ret == 0 then
-			double_page(false)
-		elseif ret == 1 then
-			double_page(true)
+		if same_height[index] ~= 2 and valid_width[index] then
+			if same_height[index] == 0 then
+				double_page(false)
+			else
+				double_page(true)
+			end
 		end
 	end
 end
@@ -272,7 +282,7 @@ end
 
 function next_page()
 	local index = mp.get_property_number("playlist-pos")
-	if opts.double and valid_width[index] then
+	if opts.double and valid_width[index] and same_height[index] ~= 2 then
 		change_page(2)
 	elseif opts.continuous then
 		change_page(opts.continuous_size)
@@ -283,7 +293,7 @@ end
 
 function prev_page()
 	local index = mp.get_property_number("playlist-pos")
-	if opts.double and valid_width[index] then
+	if opts.double and valid_width[index-2] and same_height[index-2] ~= 2 then
 		change_page(-2)
 	elseif opts.continuous then
 		change_page(-opts.continuous_size)
@@ -520,14 +530,19 @@ function fill_width_height_array()
 	local length = mp.get_property_number("playlist-count")
 	for i=0,length-2 do
 		if filedims[i][0] == filedims[i+1][0] then
-			valid_width[i] = true
+			same_width[i] = 0
+		elseif math.abs(filedims[i][0] - filedims[i][0]) < 20 then
+			same_width[i] = 1
 		else
-			valid_width[i] = false
+			same_width[i] = 2
 		end
+		valid_width[i] = check_aspect_ratio(i)
 		if filedims[i][1] == filedims[i+1][1] then
-			valid_height[i] = true
+			same_height[i] = 0
+		elseif math.abs(filedims[i][1] - filedims[i][1]) < 20 then
+			same_height[i] = 1
 		else
-			valid_height[i] = false
+			same_height[i] = 2
 		end
 	end
 end
@@ -584,7 +599,7 @@ function toggle_reader()
 		if filedims[0] == nil then
 			store_image_dims()
 		end
-		if valid_width[0] == nil then
+		if same_width[0] == nil then
 			fill_width_height_array()
 		end
 		if opts.continuous then
