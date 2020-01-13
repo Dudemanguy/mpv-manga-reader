@@ -207,7 +207,7 @@ function set_lavfi_complex_double(scale)
 		end
 	end
 	if scale then
-		hstack = "[vid2] scale="..filedims[index][0].."x"..filedims[index][1]..":flags=spline [vid2_scale]; "..hstack
+		hstack = "[vid2] scale="..filedims[index][0].."x"..filedims[index][1]..":flags=lanczos [vid2_scale]; "..hstack
 	end
 	mp.set_property("lavfi-complex", hstack)
 end
