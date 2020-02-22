@@ -452,8 +452,9 @@ function remove_non_images()
 		end
 		if not match then
 			mp.commandv("playlist-remove", i)
+		else
+			i = i + 1
 		end
-		i = i + 1
 		name = mp.get_property("playlist/"..tostring(i).."/filename")
 	end
 end
