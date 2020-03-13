@@ -491,34 +491,34 @@ function find_max_width(split, pages)
 	return max_width
 end
 
-function sleep(seconds)
-	local time = os.clock() + seconds
-	repeat until os.clock() > time
-end
-
 function store_image_dims()
 	mp.set_property("brightness", -100)
 	mp.set_property("contrast", -100)
 	mp.set_property_bool("really-quiet", true)
 	local length = mp.get_property_number("playlist-count")
-	for i=0,length-1 do
-		local dims = {}
-		local width = mp.get_property_number("width")
-		while width == nil do
-			width = mp.get_property_number("width")
+	local pos = 0
+	while true do
+		e = mp.wait_event(0)
+		if pos == 0 then
+			mp.set_property("playlist-pos", 0)
 		end
-		local height = mp.get_property_number("height")
-		while height == nil do
-			height = mp.get_property_number("height")
+		if e.event == "end-file" then
+			local dims = {}
+			local width = nil
+			local height = nil
+			while width == nil or height == nil do
+				width = mp.get_property_number("width")
+				height = mp.get_property_number("height")
+			end
+			dims[0] = width
+			dims[1] = height
+			filedims[pos] = dims
+			pos = pos + 1
+			if pos == length then
+				break
+			end
+			mp.set_property("playlist-pos", pos)
 		end
-		dims[0] = width
-		dims[1] = height
-		filedims[i] = dims
-		height = nil
-		width = nil
-		mp.commandv("playlist-next")
-		--hack a sleep in here so the properties load correctly
-		sleep(0.05)
 	end
 	mp.set_property("playlist-pos", 0)
 	mp.set_property("brightness", 0)
