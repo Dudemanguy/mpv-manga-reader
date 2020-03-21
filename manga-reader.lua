@@ -150,6 +150,8 @@ function check_lavfi_complex(event)
 			change_page(1)
 		end
 		if opts.double then
+			opts.double = false
+			mp.osd_message("Error setting double page. Reverting to single page.")
 			local index = mp.get_property_number("playlist-pos")
 			change_page(-1)
 		end
@@ -186,27 +188,35 @@ end
 
 function set_lavfi_complex_double(scale)
 	-- video track ids load unpredictably so check which one is external
-	local external = mp.get_property_bool("track-list/1/external")
+	local external = mp.get_property_bool("track-list/0/external")
 	local index = mp.get_property_number("playlist-pos")
-	local vid2 = "[vid2]"
 	local hstack
+	local external_vid
+	if external then
+		external_vid = "[vid1]"
+	else
+		external_vid = "[vid2]"
+	end
 	if scale then
-		vid2 = "[vid2_scale]"
+		external_vid = string.sub(external_vid, 0, 5).."_scale]"
 	end
 	if external then
 		if opts.manga then
-			hstack = vid2.." [vid1] hstack [vo]"
+			hstack = external_vid.." [vid2] hstack [vo]"
 		else
-			hstack = "[vid1] "..vid2.." hstack [vo]"
+			hstack = "[vid2] "..external_vid.." hstack [vo]"
 		end
 	else
 		if opts.manga then
-			hstack = "[vid1] "..vid2.." hstack [vo]"
+			hstack = external_vid.." [vid1] hstack [vo]"
 		else
-			hstack = vid2.." [vid1] hstack [vo]"
+			hstack = "[vid1] "..external_vid.." hstack [vo]"
 		end
 	end
-	if scale then
+	if scale and external then
+		hstack = "[vid1] scale="..filedims[index][0].."x"..filedims[index][1]..":flags=lanczos [vid1_scale]; "..hstack
+	end
+	if scale and not external then
 		hstack = "[vid2] scale="..filedims[index][0].."x"..filedims[index][1]..":flags=lanczos [vid2_scale]; "..hstack
 	end
 	mp.set_property("lavfi-complex", hstack)
