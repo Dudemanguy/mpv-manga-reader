@@ -144,7 +144,7 @@ function log2(num)
 end
 
 function check_lavfi_complex(event)
-	if event['error'] then
+	if event.file_error or event.error then
 		mp.set_property("lavfi-complex", "")
 		if opts.continuous then
 			change_page(1)
