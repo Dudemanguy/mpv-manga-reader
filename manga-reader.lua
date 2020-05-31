@@ -589,7 +589,7 @@ function toggle_reader()
 		end
 	else
 		if not first_start then
-			mp.osd_message("Not an image")
+			mp.osd_message("Not a playlist of images.")
 		end
 	end
 end
