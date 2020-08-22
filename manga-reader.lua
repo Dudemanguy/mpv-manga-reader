@@ -61,12 +61,10 @@ function check_images()
 	end
 end
 
-function validate_pages(pages)
-	local index = mp.get_property_number("playlist-pos")
-	local length = mp.get_property_number("playlist-count")
+function validate_pages(index, pages)
 	local needs_validation = false
 	for i=index,index+pages-1 do
-		if filedims[i] == nil then
+		if valid_width[i] == nil then
 			needs_validation = true
 			break
 		end
@@ -146,7 +144,7 @@ function change_page(amount)
 		else
 			pages = opts.continuous_size
 		end
-		validate_pages(pages)
+		validate_pages(index, pages)
 		if amount >= 0 then
 			continuous_page("top", pages)
 		elseif old_index == 0 and amount < 0 then
@@ -156,7 +154,7 @@ function change_page(amount)
 		end
 	end
 	if opts.double and initiated then
-		validate_pages(2)
+		validate_pages(index, 2)
 		if same_height[index] ~= 2 and valid_width[index] then
 			if same_height[index] == 0 then
 				double_page(false)
