@@ -213,10 +213,9 @@ function check_lavfi_complex(event)
 			change_page(1)
 		end
 		if opts.double then
-			opts.double = false
-			mp.osd_message("Error setting double page. Reverting to single page.")
 			local index = mp.get_property_number("playlist-pos")
 			change_page(-1)
+			double_page(true)
 		end
 	end
 end
