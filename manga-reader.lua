@@ -18,7 +18,6 @@ local opts = {
 	skip_size = 10,
 	trigger_zone = 0.05,
 }
-local same_width = {}
 local same_height = {}
 local valid_width = {}
 
@@ -62,6 +61,70 @@ function check_images()
 	end
 end
 
+function validate_pages(pages)
+	local index = mp.get_property_number("playlist-pos")
+	local length = mp.get_property_number("playlist-count")
+	local needs_validation = false
+	for i=index,index+pages-1 do
+		if filedims[i] == nil then
+			needs_validation = true
+			break
+		end
+	end
+	if not needs_validation then
+		return
+	end
+	local brightness = mp.get_property("brightness")
+	local contrast = mp.get_property("contrast")
+	local really_quiet = mp.get_property_bool("really-quiet")
+	mp.set_property("brightness", -100)
+	mp.set_property("contrast", -100)
+	mp.set_property_bool("really-quiet", true)
+	local pos = index
+	while true do
+		e = mp.wait_event(0)
+		if pos == index then
+			mp.set_property("playlist-pos", index)
+		end
+		if e.event == "end-file" then
+			local dims = {}
+			local width = nil
+			local height = nil
+			while width == nil or height == nil do
+				width = mp.get_property_number("width")
+				height = mp.get_property_number("height")
+			end
+			dims[0] = width
+			dims[1] = height
+			filedims[pos] = dims
+			pos = pos + 1
+			if pos == index+pages then
+				break
+			end
+			mp.set_property("playlist-pos", pos)
+		end
+	end
+	mp.set_property("playlist-pos", index)
+	mp.set_property("brightness", brightness)
+	mp.set_property("contrast", contrast)
+	mp.set_property_bool("really-quiet", really_quiet)
+	for i=index,index+pages-2 do
+		local good_aspect_ratio = check_aspect_ratio(i)
+		if filedims[i][1] == filedims[i+1][1] then
+			same_height[i] = 0
+		elseif math.abs(filedims[i][1] - filedims[i+1][1]) < 20 then
+			same_height[i] = 1
+		else
+			same_height[i] = 2
+		end
+		if not good_aspect_ratio then
+			valid_width[i] = false
+		else
+			valid_width[i] = true
+		end
+	end
+end
+
 function change_page(amount)
 	local old_index = mp.get_property_number("playlist-pos")
 	local len = mp.get_property_number("playlist-count")
@@ -79,10 +142,11 @@ function change_page(amount)
 	if opts.continuous and initiated then
 		local pages
 		if opts.continuous_size + index > len then
-			pages = opts.continuous_size + index - len
+			pages = opts.continuous_size - (opts.continuous_size + index - len)
 		else
 			pages = opts.continuous_size
 		end
+		validate_pages(pages)
 		if amount >= 0 then
 			continuous_page("top", pages)
 		elseif old_index == 0 and amount < 0 then
@@ -92,6 +156,7 @@ function change_page(amount)
 		end
 	end
 	if opts.double and initiated then
+		validate_pages(2)
 		if same_height[index] ~= 2 and valid_width[index] then
 			if same_height[index] == 0 then
 				double_page(false)
@@ -469,27 +534,6 @@ function remove_non_images()
 	end
 end
 
-function fill_width_height_array()
-	local length = mp.get_property_number("playlist-count")
-	for i=0,length-2 do
-		if filedims[i][0] == filedims[i+1][0] then
-			same_width[i] = 0
-		elseif math.abs(filedims[i][0] - filedims[i][0]) < 20 then
-			same_width[i] = 1
-		else
-			same_width[i] = 2
-		end
-		valid_width[i] = check_aspect_ratio(i)
-		if filedims[i][1] == filedims[i+1][1] then
-			same_height[i] = 0
-		elseif math.abs(filedims[i][1] - filedims[i][1]) < 20 then
-			same_height[i] = 1
-		else
-			same_height[i] = 2
-		end
-	end
-end
-
 function find_max_width(split, pages)
 	local index = mp.get_property_number("playlist-pos")
 	local max_width = 0
@@ -499,41 +543,6 @@ function find_max_width(split, pages)
 		end
 	end
 	return max_width
-end
-
-function store_image_dims()
-	mp.set_property("brightness", -100)
-	mp.set_property("contrast", -100)
-	mp.set_property_bool("really-quiet", true)
-	local length = mp.get_property_number("playlist-count")
-	local pos = 0
-	while true do
-		e = mp.wait_event(0)
-		if pos == 0 then
-			mp.set_property("playlist-pos", 0)
-		end
-		if e.event == "end-file" then
-			local dims = {}
-			local width = nil
-			local height = nil
-			while width == nil or height == nil do
-				width = mp.get_property_number("width")
-				height = mp.get_property_number("height")
-			end
-			dims[0] = width
-			dims[1] = height
-			filedims[pos] = dims
-			pos = pos + 1
-			if pos == length then
-				break
-			end
-			mp.set_property("playlist-pos", pos)
-		end
-	end
-	mp.set_property("playlist-pos", 0)
-	mp.set_property("brightness", 0)
-	mp.set_property("contrast", 0)
-	mp.set_property_bool("really-quiet", false)
 end
 
 function str_split(str, delim)
@@ -550,12 +559,6 @@ function toggle_reader()
 	local image = check_images()
 	if image then
 		remove_non_images()
-		if filedims[0] == nil then
-			store_image_dims()
-		end
-		if same_width[0] == nil then
-			fill_width_height_array()
-		end
 		if opts.continuous then
 			opts.double = false
 			opts.continuous = true

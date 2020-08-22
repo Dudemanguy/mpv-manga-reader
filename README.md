@@ -7,7 +7,7 @@ The manga-reader script has been completely rewritten. Remove any manga-worker s
 ## Usage
 Just place `manga-reader.lua` in your scripts directory and then load up a directory of images or an archive. Non-images are removed based on their extension. If you have some weird, special snowflake image format, just let me know and I can add it to the array.
 
-By default, starting mpv-manga-reader is bound to `y`. When starting the reader, it will temporarily turn the brightness and contrast all the way down (to avoid spoilers of course) and scroll all the way through the playlist. This is so the script can fetch the image dimensions of every single page (there's not a better way to do this unfortunately). After that, the reader will start in manga mode in single page mode (by default) and rebind some keys. Here are the defaults.
+By default, starting mpv-manga-reader is bound to `y`. When turning the reader on, it will enter manga mode and single page mode (by default) and rebind some keys. Here are the defaults.
 
 * toggle-manga-reader: `y`
 * toggle-double-page: `d`
