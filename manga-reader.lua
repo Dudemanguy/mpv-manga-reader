@@ -1,6 +1,22 @@
 require "mp.options"
 local utils = require "mp.utils"
-local ext = {".avif", ".bmp", ".gif", ".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp"}
+local ext = {
+	"",
+	".7z",
+	".avif",
+	".bmp",
+	".cbz",
+	".gif",
+	".jpg",
+	".jpeg",
+	".png",
+	".rar",
+	".tar",
+	".tif",
+	".tiff",
+	".webp",
+	".zip"
+}
 local first_start = true
 local filedims = {}
 local initiated = false
@@ -535,7 +551,7 @@ function remove_non_images()
 	while name ~= nil do
 		local sub = string.sub(name, -5)
 		local match = false
-		for j=1,9 do
+		for j = 1, #ext do
 			if string.match(sub, ext[j]) then
 				match = true
 				break
@@ -574,7 +590,6 @@ end
 function toggle_reader()
 	local image = check_images()
 	if image then
-		remove_non_images()
 		if opts.continuous then
 			opts.double = false
 			opts.continuous = true
@@ -584,6 +599,7 @@ function toggle_reader()
 			initiated = true
 			set_keys()
 			set_properties()
+			mp.observe_property("playlist-count", number, remove_non_images)
 			mp.osd_message("Manga Reader Started")
 			mp.add_key_binding("c", "toggle-continuous-mode", toggle_continuous_mode)
 			mp.add_key_binding("d", "toggle-double-page", toggle_double_page)
@@ -594,6 +610,7 @@ function toggle_reader()
 			initiated = false
 			remove_keys()
 			restore_properties()
+			mp.unobserve_property(remove_non_images)
 			mp.unobserve_property(check_y_pos)
 			mp.set_property("video-zoom", 0)
 			mp.set_property("video-align-y", 0)

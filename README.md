@@ -5,7 +5,7 @@ mpv-manga-reader is a script aimed at making mpv a usable manga reader (it also 
 The manga-reader script has been completely rewritten. Remove any manga-worker scripts if you have them. They are no longer needed. Instead of making imagemagick calls, `manga-reader` is now based around the `lavfi-complex` filter (which I didn't know existed when I originally wrote this). Thanks to this, the script now works *with* mpv's playlist feature instead of having to work around it like it was doing previously. Using `lavfi-complex` is much faster (no more background image stitching hogging the I/O and CPU), has less boilerplate, and also removes all of the shell calls. That means it should work on Windows now.
 
 ## Usage
-Just place `manga-reader.lua` in your scripts directory and then load up a directory of images or an archive. Non-images are removed based on their extension. If you have some weird, special snowflake image format, just let me know and I can add it to the array.
+Just place `manga-reader.lua` in your scripts directory and then load up a directory of images or an archive. Non-images and archives are removed based on their extension. If you have some weird, special snowflake image/archive format, just let me know and I can add it to the array.
 
 By default, starting mpv-manga-reader is bound to `y`. When turning the reader on, it will enter manga mode and single page mode (by default) and rebind some keys. Here are the defaults.
 
