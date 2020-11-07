@@ -6,6 +6,10 @@ local filedims = {}
 local initiated = false
 local input = ""
 local jump = false
+local init_values = {
+	force_window = false,
+	image_display_duration = 1,
+}
 local opts = {
 	auto_start = false,
 	continuous = false,
@@ -472,6 +476,19 @@ function jump_page_mode()
 	end
 end
 
+function set_properties()
+	init_values.force_window = true
+	init_values.force_window = mp.get_property_bool("force-window")
+	init_values.image_display_duration = mp.get_property("image-display-duration")
+	mp.set_property_bool("force-window", true)
+	mp.set_property("image-display-duration", "inf")
+end
+
+function restore_properties()
+	mp.set_property_bool("force-window", init_values.force_window)
+	mp.set_property("image-display-duration", init_values.image_display_duration)
+end
+
 function set_keys()
 	if opts.manga then
 		mp.add_forced_key_binding("LEFT", "next-page", next_page)
@@ -562,18 +579,19 @@ function toggle_reader()
 			mp.observe_property("video-pan-y", number, check_y_pos)
 		end
 		if not initiated then
-			set_keys()
 			initiated = true
+			set_keys()
+			set_properties()
 			mp.osd_message("Manga Reader Started")
-			mp.set_property_bool("force-window", true)
 			mp.add_key_binding("c", "toggle-continuous-mode", toggle_continuous_mode)
 			mp.add_key_binding("d", "toggle-double-page", toggle_double_page)
 			mp.add_key_binding("m", "toggle-manga-mode", toggle_manga_mode)
 			mp.register_event("end-file", check_lavfi_complex)
 			change_page(0)
 		else
-			remove_keys()
 			initiated = false
+			remove_keys()
+			restore_properties()
 			mp.unobserve_property(check_y_pos)
 			mp.set_property("video-zoom", 0)
 			mp.set_property("video-align-y", 0)
