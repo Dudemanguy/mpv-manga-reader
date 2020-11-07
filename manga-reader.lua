@@ -136,15 +136,17 @@ function change_page(amount)
 	end
 	if index > len - 2 and opts.double then
 		index = len - 2
-	elseif index > len - 2 then
+	elseif index > len - 2 and not opts.continuous then
 		index = len - 1
+	elseif index > len - 2 and opts.continuous then
+		index = old_index
 	end
 	mp.set_property("lavfi-complex", "")
 	mp.set_property("playlist-pos", index)
 	if opts.continuous and initiated then
 		local pages
 		if opts.continuous_size + index > len then
-			pages = opts.continuous_size - (opts.continuous_size + index - len)
+			pages = len - index
 		else
 			pages = opts.continuous_size
 		end
