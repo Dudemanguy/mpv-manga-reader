@@ -1,7 +1,6 @@
 require "mp.options"
 local utils = require "mp.utils"
 local ext = {
-	"",
 	".7z",
 	".avif",
 	".bmp",
@@ -549,13 +548,16 @@ function remove_non_images()
 	local i = 0
 	local name = mp.get_property("playlist/"..tostring(i).."/filename")
 	while name ~= nil do
-		local sub = string.sub(name, -5)
+		local name_ext = string.sub(name, -5)
 		local match = false
 		for j = 1, #ext do
-			if string.match(sub, ext[j]) then
+			if string.match(name_ext, ext[j]) then
 				match = true
 				break
 			end
+		end
+		if string.match(name_ext, "%.") == nil and not match then
+			match = true
 		end
 		if not match then
 			mp.commandv("playlist-remove", i)
