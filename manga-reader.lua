@@ -307,7 +307,7 @@ end
 
 function next_page()
 	local index = mp.get_property_number("playlist-pos")
-	if opts.double and valid_width[index] and same_height[index] ~= 2 then
+	if opts.double and valid_width[index] ~= false and same_height[index] ~= 2 then
 		change_page(2)
 	elseif opts.continuous then
 		change_page(opts.continuous_size)
@@ -318,7 +318,7 @@ end
 
 function prev_page()
 	local index = mp.get_property_number("playlist-pos")
-	if opts.double and valid_width[index-2] and same_height[index-2] ~= 2 then
+	if opts.double and valid_width[index-2] ~= false and same_height[index-2] ~= 2 then
 		change_page(-2)
 	elseif opts.continuous then
 		change_page(-opts.continuous_size)
