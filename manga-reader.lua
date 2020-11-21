@@ -37,7 +37,7 @@ local opts = {
 	skip_size = 10,
 	trigger_zone = 0.05,
 }
-local same_height = {}
+local similar_height = {}
 local valid_width = {}
 
 function calculate_zoom_level(dims, pages)
@@ -81,8 +81,14 @@ function check_images()
 end
 
 function validate_pages(index, pages)
+	local old_index = mp.get_property_number("playlist-pos")
+	local len = mp.get_property_number("playlist-count")
+	local finish = index + pages - 1
+	if finish > len - 1 then
+		finish = len - 1
+	end
 	local needs_validation = false
-	for i=index,index+pages-1 do
+	for i=index,finish do
 		if valid_width[i] == nil then
 			needs_validation = true
 			break
@@ -97,6 +103,7 @@ function validate_pages(index, pages)
 	mp.set_property("brightness", -100)
 	mp.set_property("contrast", -100)
 	mp.set_property_bool("really-quiet", true)
+	mp.set_property("lavfi-complex", "")
 	local pos = index
 	while true do
 		e = mp.wait_event(0)
@@ -115,7 +122,7 @@ function validate_pages(index, pages)
 			dims[1] = height
 			filedims[pos] = dims
 			pos = pos + 1
-			if pos == index+pages then
+			if pos == finish + 1 then
 				break
 			end
 			mp.set_property("playlist-pos", pos)
@@ -125,14 +132,12 @@ function validate_pages(index, pages)
 	mp.set_property("brightness", brightness)
 	mp.set_property("contrast", contrast)
 	mp.set_property_bool("really-quiet", really_quiet)
-	for i=index,index+pages-2 do
+	for i=index,finish - 1 do
 		local good_aspect_ratio = check_aspect_ratio(i)
-		if filedims[i][1] == filedims[i+1][1] then
-			same_height[i] = 0
-		elseif math.abs(filedims[i][1] - filedims[i+1][1]) < 20 then
-			same_height[i] = 1
+		if math.abs(filedims[i][1] - filedims[i+1][1]) < 20 then
+			similar_height[i] = true
 		else
-			same_height[i] = 2
+			similar_height[i] = false
 		end
 		if not good_aspect_ratio then
 			valid_width[i] = false
@@ -142,46 +147,25 @@ function validate_pages(index, pages)
 	end
 end
 
-function change_page(amount)
-	local old_index = mp.get_property_number("playlist-pos")
-	local len = mp.get_property_number("playlist-count")
-	local index = old_index + amount
-	if index < 0 then
-		index = 0
-	end
-	if index > len - 2 and opts.double then
-		index = len - 2
-	elseif index > len - 2 and not opts.continuous then
-		index = len - 1
-	elseif index > len - 2 and opts.continuous then
-		index = old_index
-	end
+function change_page(index)
 	mp.set_property("lavfi-complex", "")
 	mp.set_property("playlist-pos", index)
-	if opts.continuous and initiated then
-		local pages
-		if opts.continuous_size + index > len then
-			pages = len - index
-		else
-			pages = opts.continuous_size
-		end
+	if opts.continuous then
+		local len = mp.get_property_number("playlist-count")
+		local pages = math.min(len - index, opts.continuous_size)
 		validate_pages(index, pages)
-		if amount >= 0 then
-			continuous_page("top", pages)
-		elseif old_index == 0 and amount < 0 then
-			continuous_page("top", pages)
-		elseif amount < 0 then
-			continuous_page("bottom", pages)
+		if index == len - 1 then
+			mp.set_property("video-zoom", 0)
+			mp.set_property("video-align-y", 0)
+			mp.set_property("video-pan-y", 0)
+			return
 		end
+		continuous_page("top", pages)
 	end
-	if opts.double and initiated then
+	if opts.double then
 		validate_pages(index, 2)
-		if same_height[index] ~= 2 and valid_width[index] then
-			if same_height[index] == 0 then
-				double_page(false)
-			else
-				double_page(true)
-			end
+		if valid_width[index] and similar_height[index] then
+			double_page()
 		end
 	end
 end
@@ -212,7 +196,7 @@ function continuous_page(alignment, pages)
 	set_lavfi_complex_continuous(arg, alignment, pages)
 end
 
-function double_page(scale)
+function double_page()
 	local index = mp.get_property_number("playlist-pos")
 	local second_page = mp.get_property("playlist/"..tostring(index+1).."/filename")
 	local success = mp.commandv("video-add", second_page, "auto")
@@ -220,7 +204,7 @@ function double_page(scale)
 		-- can fail on occasion so just retry until it works
 		success = mp.commandv("video-add", second_page, "auto")
 	end
-	set_lavfi_complex_double(scale)
+	set_lavfi_complex_double()
 end
 
 function log2(num)
@@ -230,13 +214,16 @@ end
 function check_lavfi_complex(event)
 	if event.file_error or event.error then
 		mp.set_property("lavfi-complex", "")
+		local index = mp.get_property_number("playlist-pos")
 		if opts.continuous then
-			change_page(1)
+			opts.continous = false
+			toggle_continuous_mode()
+			mp.osd_message("Error when trying to set continuous mode! Disabling!")
 		end
 		if opts.double then
-			local index = mp.get_property_number("playlist-pos")
-			change_page(-1)
-			double_page(true)
+			opts.double = false
+			toggle_double_page()
+			mp.osd_message("Error when trying to set double page mode! Disabling!")
 		end
 	end
 end
@@ -269,7 +256,7 @@ function set_lavfi_complex_continuous(arg, alignment, pages)
 	end
 end
 
-function set_lavfi_complex_double(scale)
+function set_lavfi_complex_double()
 	-- video track ids load unpredictably so check which one is external
 	local external = mp.get_property_bool("track-list/0/external")
 	local index = mp.get_property_number("playlist-pos")
@@ -280,9 +267,7 @@ function set_lavfi_complex_double(scale)
 	else
 		external_vid = "[vid2]"
 	end
-	if scale then
-		external_vid = string.sub(external_vid, 0, 5).."_scale]"
-	end
+	external_vid = string.sub(external_vid, 0, 5).."_scale]"
 	if external then
 		if opts.manga then
 			hstack = external_vid.." [vid2] hstack [vo]"
@@ -296,72 +281,130 @@ function set_lavfi_complex_double(scale)
 			hstack = "[vid1] "..external_vid.." hstack [vo]"
 		end
 	end
-	if scale and external then
+	if external then
 		hstack = "[vid1] scale="..filedims[index][0].."x"..filedims[index][1]..":flags=lanczos [vid1_scale]; "..hstack
 	end
-	if scale and not external then
+	if not external then
 		hstack = "[vid2] scale="..filedims[index][0].."x"..filedims[index][1]..":flags=lanczos [vid2_scale]; "..hstack
 	end
 	mp.set_property("lavfi-complex", hstack)
 end
 
 function next_page()
+	local len = mp.get_property_number("playlist-count")
 	local index = mp.get_property_number("playlist-pos")
-	if opts.double and valid_width[index] ~= false and same_height[index] ~= 2 then
-		change_page(2)
+	local new_index
+	if opts.double then
+		local double_displayed = mp.get_property("lavfi-complex") ~= ""
+		if double_displayed then
+			new_index = index + 2
+		else
+			new_index = index + 1
+		end
+		if new_index > len - 2  and double_displayed then
+			new_index = len - 2
+		elseif new_index > len - 2 then
+			new_index = len - 1
+		end
+		if new_index == index then
+			return
+		end
+		local pages = math.min(len - new_index, 2)
+		validate_pages(new_index, pages)
 	elseif opts.continuous then
-		change_page(opts.continuous_size)
+		new_index = math.min(index + opts.continuous_size, len - 1)
+		local pages = math.abs(new_index - index)
+		validate_pages(new_index, pages)
+		if new_index == index then
+			return
+		end
 	else
-		change_page(1)
+		new_index = math.min(len - 1, index + 1)
+		if new_index == index then
+			return
+		end
 	end
+	change_page(new_index)
 end
 
 function prev_page()
+	local len = mp.get_property_number("playlist-count")
 	local index = mp.get_property_number("playlist-pos")
-	if opts.double and valid_width[index-2] ~= false and same_height[index-2] ~= 2 then
-		change_page(-2)
+	local new_index
+	if opts.double then
+		new_index = math.max(0, index - 2)
+		validate_pages(new_index, 2)
+		if valid_width[new_index] and similar_height[new_index] then
+			new_index = index - 2
+		else
+			new_index = index - 1
+		end
+		new_index = math.max(0, new_index)
+		if new_index == index then
+			return
+		end
 	elseif opts.continuous then
-		change_page(-opts.continuous_size)
+		new_index = math.max(0, index - opts.continuous_size)
+		local pages = math.abs(index - new_index)
+		validate_pages(new_index, pages)
+		if new_index == index then
+			return
+		end
 	else
-		change_page(-1)
+		new_index = math.max(0, index - 1)
+		if new_index == index then
+			return
+		end
 	end
+	change_page(new_index)
 end
 
 function next_single_page()
-	change_page(1)
+	local len = mp.get_property_number("playlist-count")
+	local index = mp.get_property_number("playlist-pos")
+	local new_index = math.min(index + 1, len - 1)
+	change_page(new_index)
 end
 
 function prev_single_page()
-	change_page(-1)
+	local index = mp.get_property_number("playlist-pos")
+	local new_index = math.max(0, index - 1)
+	change_page(new_index)
 end
 
 function skip_forward()
-	change_page(opts.skip_size)
+	local len = mp.get_property_number("playlist-count")
+	local index = mp.get_property_number("playlist-pos")
+	local new_index = math.min(index + opts.skip_size, len - 1)
+	change_page(new_index)
 end
 
 function skip_backward()
-	change_page(-opts.skip_size)
+	local index = mp.get_property_number("playlist-pos")
+	local new_index = math.max(0, index - opts.skip_size)
+	change_page(new_index)
 end
 
 function first_page()
-	mp.set_property("lavfi-complex", "")
-	mp.set_property("playlist-pos", 0);
 	change_page(0)
 end
 
 function last_page()
-	mp.set_property("lavfi-complex", "")
 	local len = mp.get_property_number("playlist-count")
 	local index = 0;
 	if opts.continuous then
 		index = len - opts.continuous_size
 	elseif opts.double then
-		index = len - 2
+		validate_pages(len - 2, 2)
+		if valid_width[len - 2] and similar_height[len - 2] then
+			index = len - 2
+		else
+			index = len - 1
+		end
 	else
 		index = len - 1
 	end
-	mp.set_property("playlist-pos", index);
-	change_page(0)
+	change_page(index)
 	if opts.continuous then
 		mp.set_property("video-align-y", 1)
 	end
@@ -439,8 +482,7 @@ function jump_page_go()
 	if (dest > len - 1) or (dest < 0) then
 		mp.osd_message("Specified page does not exist")
 	else
-		local amount = dest - index
-		change_page(amount)
+		change_page(dest)
 	end
 	remove_jump_keys()
 	jump = false
@@ -592,6 +634,7 @@ end
 function toggle_reader()
 	local image = check_images()
 	if image then
+		local index = mp.get_property_number("playlist-pos")
 		if opts.continuous then
 			opts.double = false
 			opts.continuous = true
@@ -607,7 +650,7 @@ function toggle_reader()
 			mp.add_key_binding("d", "toggle-double-page", toggle_double_page)
 			mp.add_key_binding("m", "toggle-manga-mode", toggle_manga_mode)
 			mp.register_event("end-file", check_lavfi_complex)
-			change_page(0)
+			change_page(index)
 		else
 			initiated = false
 			remove_keys()
@@ -624,7 +667,7 @@ function toggle_reader()
 			mp.remove_key_binding("toggle-manga-mode")
 			mp.osd_message("Closing Reader")
 			mp.unregister_event(check_lavfi_complex)
-			change_page(0)
+			change_page(index)
 		end
 	else
 		if not first_start then
@@ -703,7 +746,8 @@ function toggle_continuous_mode()
 		opts.continuous = true
 		mp.observe_property("video-pan-y", number, check_y_pos)
 	end
-	change_page(0)
+	local index = mp.get_property_number("playlist-pos")
+	change_page(index)
 end
 
 function toggle_double_page()
@@ -715,7 +759,8 @@ function toggle_double_page()
 		opts.continuous = false
 		opts.double = true
 	end
-	change_page(0)
+	local index = mp.get_property_number("playlist-pos")
+	change_page(index)
 end
 
 function toggle_manga_mode()
@@ -727,7 +772,8 @@ function toggle_manga_mode()
 		opts.manga = true
 	end
 	set_keys()
-	change_page(0)
+	local index = mp.get_property_number("playlist-pos")
+	change_page(index)
 end
 
 mp.register_event("file-loaded", init)
