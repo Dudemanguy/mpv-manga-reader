@@ -1,9 +1,6 @@
 # mpv-manga-reader
 mpv-manga-reader is a script aimed at making mpv a usable manga reader (it also works great with LN scans). mpv is almost unrivalled at opening images and archives thanks to its high quality rendering, scaling, and shading capabilities, but there's no way internally for it to have something like a double page mode that people expect from manga reading software. Therefore, I created this script to help alleviate those shortcomings and hopefully convince you to finally abandon mcomix.
 
-## Note
-The manga-reader script has been completely rewritten. Remove any manga-worker scripts if you have them. They are no longer needed. Instead of making imagemagick calls, `manga-reader` is now based around the `lavfi-complex` filter (which I didn't know existed when I originally wrote this). Thanks to this, the script now works *with* mpv's playlist feature instead of having to work around it like it was doing previously. Using `lavfi-complex` is much faster (no more background image stitching hogging the I/O and CPU), has less boilerplate, and also removes all of the shell calls. That means it should work on Windows now.
-
 ## Usage
 Just place `manga-reader.lua` in your scripts directory and then load up a directory of images or an archive. Non-images and archives are removed based on their extension. If you have some weird, special snowflake image/archive format, just let me know and I can add it to the array.
 
