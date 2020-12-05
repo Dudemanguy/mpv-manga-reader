@@ -134,7 +134,7 @@ function validate_pages(index, pages)
 	mp.set_property_bool("really-quiet", really_quiet)
 	for i=index,finish - 1 do
 		local good_aspect_ratio = check_aspect_ratio(i)
-		if math.abs(filedims[i][1] - filedims[i+1][1]) < 20 then
+		if math.abs(filedims[i][1] - filedims[i+1][1]) < 50 then
 			similar_height[i] = true
 		else
 			similar_height[i] = false
