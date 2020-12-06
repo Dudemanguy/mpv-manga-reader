@@ -34,6 +34,7 @@ local opts = {
 	monitor_height = 1080,
 	monitor_width = 1920,
 	pan_size = 0.05,
+	similar_height_threshold = 50,
 	skip_size = 10,
 	trigger_zone = 0.05,
 }
@@ -134,7 +135,7 @@ function validate_pages(index, pages)
 	mp.set_property_bool("really-quiet", really_quiet)
 	for i=index,finish - 1 do
 		local good_aspect_ratio = check_aspect_ratio(i)
-		if math.abs(filedims[i][1] - filedims[i+1][1]) < 50 then
+		if math.abs(filedims[i][1] - filedims[i+1][1]) < opts.similar_height_threshold then
 			similar_height[i] = true
 		else
 			similar_height[i] = false

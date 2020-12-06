@@ -56,6 +56,9 @@ Defaults to `1920`. The width of the display. Apply any DPI scaling used to this
 ``pan_size``\
 Defaults to `0.05`. Defines the magnitude of pan-up and pan-down.
 
+``similar_height_threshold`` \
+Defaults to `50`. This is the threshold used for determining whether or not to to display two pages in double page mode. The lavfi-complex filter requires that both video streams be exactly the same height when stacking the videos horizontally. It is common for scans to have slightly differing sizes so internally a scale filter is used with the lavfi-complex filter. The default threshold here just means that two consecutive pages whose difference in height is within 50 pixels is considered a valid double page.
+
 ``skip_size``\
 Defaults to `10`. This is the interval used by the `skip-forward` and `skip-backward` functions.
 
