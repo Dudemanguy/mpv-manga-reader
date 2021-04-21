@@ -16,6 +16,7 @@ local ext = {
 	".webp",
 	".zip"
 }
+local backwards = false
 local first_start = true
 local filedims = {}
 local initiated = false
@@ -40,6 +41,13 @@ local opts = {
 }
 local similar_height = {}
 local valid_width = {}
+
+function add_tracks(start, finish)
+	for i=start + 1, finish do
+		local new_file = mp.get_property("playlist/"..tostring(i).."/filename")
+		mp.commandv("video-add", new_file, "auto")
+	end
+end
 
 function calculate_zoom_level(dims, pages)
 	dims[0] = tonumber(dims[0])
@@ -81,59 +89,59 @@ function check_images()
 	end
 end
 
-function validate_pages(index, pages)
-	local old_index = mp.get_property_number("playlist-pos")
+function create_modes()
+	local index = mp.get_property("playlist-pos")
 	local len = mp.get_property_number("playlist-count")
+	local pages
+	if opts.double then
+		pages = 2
+	elseif opts.continuous then
+		pages = opts.continuous_size
+	else
+		return
+	end
 	local finish = index + pages - 1
-	if finish > len - 1 then
+	if finish >= len then
 		finish = len - 1
 	end
-	local needs_validation = false
-	for i=index,finish do
+	add_tracks(index, finish)
+	store_file_dims(index, finish)
+	if opts.double then
+		set_lavfi_complex_double()
+	else
+		local arg = "[vid1]"
+		for i=1, finish - index do
+			arg = arg.." [vid"..tostring(i+1).."]"
+		end
+		set_lavfi_complex_continuous(arg, finish)
+	end
+end
+
+function store_file_dims(start, finish)
+	local len = mp.get_property_number("playlist-count")
+	local needs_dims = false
+	for i=start, finish do
 		if valid_width[i] == nil then
-			needs_validation = true
+			needs_dims = true
 			break
 		end
 	end
-	if not needs_validation then
+	if not needs_dims then
 		return
 	end
-	local brightness = mp.get_property("brightness")
-	local contrast = mp.get_property("contrast")
-	local really_quiet = mp.get_property_bool("really-quiet")
-	mp.set_property("brightness", -100)
-	mp.set_property("contrast", -100)
-	mp.set_property_bool("really-quiet", true)
-	mp.set_property("lavfi-complex", "")
-	local pos = index
-	while true do
-		e = mp.wait_event(0)
-		if pos == index then
-			mp.set_property("playlist-pos", index)
+	for i=0, finish - start do
+		local dims = {}
+		local width = nil
+		local height = nil
+		while width == nil or height == nil do
+			width = mp.get_property("track-list/"..tostring(i).."/demux-w")
+			height = mp.get_property("track-list/"..tostring(i).."/demux-h")
 		end
-		if e.event == "end-file" then
-			local dims = {}
-			local width = nil
-			local height = nil
-			while width == nil or height == nil do
-				width = mp.get_property_number("width")
-				height = mp.get_property_number("height")
-			end
-			dims[0] = width
-			dims[1] = height
-			filedims[pos] = dims
-			pos = pos + 1
-			if pos == finish + 1 then
-				break
-			end
-			mp.set_property("playlist-pos", pos)
-		end
+		dims[0] = width
+		dims[1] = height
+		filedims[i+start] = dims
 	end
-	mp.set_property("playlist-pos", index)
-	mp.set_property("brightness", brightness)
-	mp.set_property("contrast", contrast)
-	mp.set_property_bool("really-quiet", really_quiet)
-	for i=index,finish - 1 do
+	for i=start, finish - 1 do
 		local good_aspect_ratio = check_aspect_ratio(i)
 		if math.abs(filedims[i][1] - filedims[i+1][1]) < opts.similar_height_threshold then
 			similar_height[i] = true
@@ -149,63 +157,17 @@ function validate_pages(index, pages)
 end
 
 function change_page(index)
-	mp.set_property("lavfi-complex", "")
 	mp.set_property("playlist-pos", index)
 	if opts.continuous then
 		local len = mp.get_property_number("playlist-count")
-		local pages = math.min(len - index, opts.continuous_size)
-		validate_pages(index, pages)
 		if index == len - 1 then
 			mp.set_property("video-zoom", 0)
 			mp.set_property("video-align-y", 0)
 			mp.set_property("video-pan-y", 0)
 			return
-		end
-		continuous_page("top", pages)
-	end
-	if opts.double then
-		validate_pages(index, 2)
-		if valid_width[index] and similar_height[index] then
-			double_page()
+			--mp.set_property("video-align-y", 1)
 		end
 	end
-end
-
-function continuous_page(alignment, pages)
-	local index = mp.get_property_number("playlist-pos")
-	local len = mp.get_property_number("playlist-count")
-	for i=index+1,index+pages-1 do
-		local new_page = mp.get_property("playlist/"..tostring(i).."/filename")
-		local success = mp.commandv("video-add", new_page, "auto")
-		while not success do
-			-- can fail on occasion so just retry until it works
-			success = mp.commandv("video-add", new_page, "auto")
-		end
-	end
-	local internal
-	for i=0,pages-1 do
-		if not mp.get_property_bool("track-list/"..tostring(i).."/external") then
-			internal = i
-		end
-	end
-	local arg = "[vid"..tostring(internal+1).."]"
-	for i=0,pages-1 do
-		if i ~= internal then
-			arg = arg.." [vid"..tostring(i+1).."]"
-		end
-	end
-	set_lavfi_complex_continuous(arg, alignment, pages)
-end
-
-function double_page()
-	local index = mp.get_property_number("playlist-pos")
-	local second_page = mp.get_property("playlist/"..tostring(index+1).."/filename")
-	local success = mp.commandv("video-add", second_page, "auto")
-	while not success do
-		-- can fail on occasion so just retry until it works
-		success = mp.commandv("video-add", second_page, "auto")
-	end
-	set_lavfi_complex_double()
 end
 
 function log2(num)
@@ -229,65 +191,50 @@ function check_lavfi_complex(event)
 	end
 end
 
-function set_lavfi_complex_continuous(arg, alignment, pages)
+function set_lavfi_complex_continuous(arg, finish)
 	local vstack = ""
 	local split = str_split(arg, " ")
 	local index = mp.get_property_number("playlist-pos")
-	local max_width = find_max_width(split, pages)
-	for i=0,pages-1 do
+	local pages = finish - index
+	local max_width = find_max_width(pages)
+	for i=0, pages do
 		if filedims[index+i][0] ~= max_width then
 			local split_pad = string.gsub(split[i], "]", "_pad]")
 			vstack = vstack..split[i].." pad="..max_width..":"..filedims[index+i][1]..":"..tostring((max_width - filedims[index+i][0])/2)..":"..filedims[index+i][1].." "..split_pad.."; "
 			split[i] = split_pad
 		end
 	end
-	for i=0,pages-1 do
+	for i=0, pages do
 		vstack = vstack..split[i].." "
 	end
-	vstack = vstack.."vstack=inputs="..tostring(pages).." [vo]"
+	vstack = vstack.."vstack=inputs="..tostring(pages + 1).." [vo]"
 	mp.set_property("lavfi-complex", vstack)
 	local index = mp.get_property_number("playlist-pos")
-	local zoom_level = calculate_zoom_level(filedims[index], pages)
+	local zoom_level = calculate_zoom_level(filedims[index], pages+1)
 	mp.set_property("video-zoom", log2(zoom_level))
 	mp.set_property("video-pan-y", 0)
-	if alignment == "top" then
-		mp.set_property("video-align-y", -1)
-	else
+	if backwards then
 		mp.set_property("video-align-y", 1)
+		backwards = false
+	else
+		mp.set_property("video-align-y", -1)
 	end
 end
 
 function set_lavfi_complex_double()
-	-- video track ids load unpredictably so check which one is external
-	local external = mp.get_property_bool("track-list/0/external")
 	local index = mp.get_property_number("playlist-pos")
+	if not valid_width[index] or not similar_height[index] then
+		return
+	end
 	local hstack
-	local external_vid
-	if external then
-		external_vid = "[vid1]"
-	else
-		external_vid = "[vid2]"
-	end
+	local external_vid = "[vid2]"
 	external_vid = string.sub(external_vid, 0, 5).."_scale]"
-	if external then
-		if opts.manga then
-			hstack = external_vid.." [vid2] hstack [vo]"
-		else
-			hstack = "[vid2] "..external_vid.." hstack [vo]"
-		end
+	if opts.manga then
+		hstack = external_vid.." [vid1] hstack [vo]"
 	else
-		if opts.manga then
-			hstack = external_vid.." [vid1] hstack [vo]"
-		else
-			hstack = "[vid1] "..external_vid.." hstack [vo]"
-		end
+		hstack = "[vid1] "..external_vid.." hstack [vo]"
 	end
-	if external then
-		hstack = "[vid1] scale="..filedims[index][0].."x"..filedims[index][1]..":flags=lanczos [vid1_scale]; "..hstack
-	end
-	if not external then
-		hstack = "[vid2] scale="..filedims[index][0].."x"..filedims[index][1]..":flags=lanczos [vid2_scale]; "..hstack
-	end
+	hstack = "[vid2] scale="..filedims[index][0].."x"..filedims[index][1]..":flags=lanczos [vid2_scale]; "..hstack
 	mp.set_property("lavfi-complex", hstack)
 end
 
@@ -310,13 +257,9 @@ function next_page()
 		if new_index == index then
 			return
 		end
-		local pages = math.min(len - new_index, 2)
-		validate_pages(new_index, pages)
 	elseif opts.continuous then
 		new_index = math.min(index + opts.continuous_size, len - 1)
-		local pages = math.abs(new_index - index)
-		validate_pages(new_index, pages)
-		if new_index == index then
+		if index + opts.continuous_size > new_index then
 			return
 		end
 	else
@@ -334,7 +277,8 @@ function prev_page()
 	local new_index
 	if opts.double then
 		new_index = math.max(0, index - 2)
-		validate_pages(new_index, 2)
+		add_tracks(new_index, index)
+		store_file_dims(new_index, index)
 		if valid_width[new_index] and similar_height[new_index] then
 			new_index = index - 2
 		else
@@ -346,11 +290,10 @@ function prev_page()
 		end
 	elseif opts.continuous then
 		new_index = math.max(0, index - opts.continuous_size)
-		local pages = math.abs(index - new_index)
-		validate_pages(new_index, pages)
 		if new_index == index then
 			return
 		end
+		mp.set_property("video-align-y", 1)
 	else
 		new_index = math.max(0, index - 1)
 		if new_index == index then
@@ -395,8 +338,10 @@ function last_page()
 	local index = 0;
 	if opts.continuous then
 		index = len - opts.continuous_size
+		backwards = true
 	elseif opts.double then
-		validate_pages(len - 2, 2)
+		add_tracks(len - 3, len - 1)
+		store_file_dims(len - 3, len - 1)
 		if valid_width[len - 2] and similar_height[len - 2] then
 			index = len - 2
 		else
@@ -406,9 +351,6 @@ function last_page()
 		index = len - 1
 	end
 	change_page(index)
-	if opts.continuous then
-		mp.set_property("video-align-y", 1)
-	end
 end
 
 function pan_up()
@@ -611,12 +553,13 @@ function remove_non_images()
 	end
 end
 
-function find_max_width(split, pages)
+function find_max_width(pages)
 	local index = mp.get_property_number("playlist-pos")
+	local len = mp.get_property_number("playlist-count")
 	local max_width = 0
-	for i=0,pages-1 do
-		if filedims[index+i][0] > max_width then
-			max_width = filedims[index+i][0]
+	for i=index, pages do
+		if tonumber(filedims[i][0]) > tonumber(max_width) then
+			max_width = filedims[i][0]
 		end
 	end
 	return max_width
@@ -686,49 +629,49 @@ function init()
 end
 
 function check_y_pos()
-	if opts.continuous then
-		local index = mp.get_property_number("playlist-pos")
-		local len = mp.get_property_number("playlist-count")
-		local first_chunk = false
-		if index+opts.continuous_size < 0 then
-			first_chunk = true
-		elseif index == 0 then
-			first_chunk = true
+	local index = mp.get_property_number("playlist-pos")
+	local len = mp.get_property_number("playlist-count")
+	local first_chunk = false
+	if index+opts.continuous_size < 0 then
+		first_chunk = true
+	elseif index == 0 then
+		first_chunk = true
+	end
+	local last_chunk = false
+	if index+opts.continuous_size >= len - 1 then
+		last_chunk = true
+	end
+	local middle_index
+	if index == len - 1 then
+		middle_index = index - 1
+	else
+		middle_index = index + 1
+	end
+	local total_height = mp.get_property("height")
+	if total_height == nil then
+		return
+	end
+	local y_pos = mp.get_property_number("video-pan-y")
+	local y_align = mp.get_property_number("video-align-y")
+	if y_align == -1 then
+		local height = filedims[middle_index][1]
+		local bottom_threshold = height / total_height - 1 - opts.trigger_zone
+		if y_pos < bottom_threshold and not last_chunk then
+			next_page()
 		end
-		local last_chunk = false
-		if index+opts.continuous_size >= len - 1 then
-			last_chunk = true
+		if y_pos > 0 and not first_chunk then
+			backwards = true
+			prev_page()
 		end
-		local middle_index
-		if index == len - 1 then
-			middle_index = index - 1
-		else
-			middle_index = index + 1
+	elseif y_align == 1 then
+		local height = filedims[middle_index][1]
+		local top_threshold = 1 - height / total_height + opts.trigger_zone
+		if y_pos > top_threshold and not first_chunk then
+			backwards = true
+			prev_page()
 		end
-		local total_height = mp.get_property("height")
-		if total_height == nil then
-			return
-		end
-		local y_pos = mp.get_property_number("video-pan-y")
-		local y_align = mp.get_property_number("video-align-y")
-		if y_align == -1 then
-			local height = filedims[middle_index][1]
-			local bottom_threshold = height / total_height - 1 - opts.trigger_zone
-			if y_pos < bottom_threshold and not last_chunk then
-				next_page()
-			end
-			if y_pos > 0 and not first_chunk then
-				prev_page()
-			end
-		elseif y_align == 1 then
-			local height = filedims[middle_index][1]
-			local top_threshold = 1 - height / total_height + opts.trigger_zone
-			if y_pos > top_threshold and not first_chunk then
-				prev_page()
-			end
-			if y_pos < 0 and not last_chunk then
-				next_page()
-			end
+		if y_pos < 0 and not last_chunk then
+			next_page()
 		end
 	end
 end
@@ -738,6 +681,7 @@ function toggle_continuous_mode()
 		mp.osd_message("Continuous Mode Off")
 		opts.continuous = false
 		mp.unobserve_property(check_y_pos)
+		mp.set_property("lavfi-complex", "")
 		mp.set_property("video-zoom", 0)
 		mp.set_property("video-align-y", 0)
 		mp.set_property("video-pan-y", 0)
@@ -755,6 +699,7 @@ function toggle_double_page()
 	if opts.double then
 		mp.osd_message("Double Page Mode Off")
 		opts.double = false
+		mp.set_property("lavfi-complex", "")
 	else
 		mp.osd_message("Double Page Mode On")
 		opts.continuous = false
@@ -777,6 +722,7 @@ function toggle_manga_mode()
 	change_page(index)
 end
 
+mp.add_hook("on_preloaded", 50, create_modes)
 mp.register_event("file-loaded", init)
 mp.add_key_binding("y", "toggle-reader", toggle_reader)
 read_options(opts, "manga-reader")
