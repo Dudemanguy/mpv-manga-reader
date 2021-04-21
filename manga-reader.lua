@@ -263,8 +263,10 @@ function prev_page()
 	local new_index
 	if opts.double then
 		new_index = math.max(0, index - 2)
-		add_tracks(new_index, index)
-		store_file_dims(new_index, index)
+		if (valid_width[new_index] == nil) then
+			add_tracks(new_index, index)
+			store_file_dims(new_index, index)
+		end
 		if valid_width[new_index] and similar_height[new_index] then
 			new_index = index - 2
 		else
@@ -326,8 +328,10 @@ function last_page()
 		index = len - opts.continuous_size
 		backwards = true
 	elseif opts.double then
-		add_tracks(len - 3, len - 1)
-		store_file_dims(len - 3, len - 1)
+		if (valid_width[len - 2] == nil) then
+			add_tracks(len - 3, len - 1)
+			store_file_dims(len - 3, len - 1)
+		end
 		if valid_width[len - 2] and similar_height[len - 2] then
 			index = len - 2
 		else
