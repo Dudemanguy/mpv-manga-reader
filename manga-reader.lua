@@ -38,6 +38,7 @@ local opts = {
 	similar_height_threshold = 50,
 	skip_size = 10,
 	trigger_zone = 0.05,
+	zoom_multiplier = 1,
 }
 local similar_height = {}
 local valid_width = {}
@@ -182,6 +183,7 @@ function set_lavfi_complex_continuous(arg, finish)
 	local split = str_split(arg, " ")
 	local index = mp.get_property_number("playlist-pos")
 	local pages = finish - index
+	print(pages)
 	local max_width = find_max_width(pages)
 	for i=0, pages do
 		if filedims[index+i][0] ~= max_width then
@@ -197,7 +199,7 @@ function set_lavfi_complex_continuous(arg, finish)
 	mp.set_property("lavfi-complex", vstack)
 	local index = mp.get_property_number("playlist-pos")
 	local zoom_level = calculate_zoom_level(filedims[index], pages+1)
-	mp.set_property("video-zoom", log2(zoom_level))
+	mp.set_property("video-zoom", opts.zoom_multiplier * log2(zoom_level))
 	mp.set_property("video-pan-y", 0)
 	if backwards then
 		mp.set_property("video-align-y", 1)

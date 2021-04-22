@@ -63,7 +63,10 @@ Defaults to `50`. This is the threshold used for determining whether or not to t
 Defaults to `10`. This is the interval used by the `skip-forward` and `skip-backward` functions.
 
 ``trigger_zone``\
-Defaults to `0.05`. When in continuous mode, the manga reader attempts to be smart and change pages for you once a pan value goes past a certain amount (determined by the page dimensions and the vertical alignment). The trigger_zone is an additional value added to this parameter. Basically, increasing the value will make it take longer for panning a page to change pages whereas decreasing does the opposite.
+Defaults to `0.05`. When in continuous mode, the manga reader attempts to be smart and change pages for you once a pan value goes past a certain amount (determined by the page dimensions and the vertical alignment). The `trigger_zone` is an additional value added to this parameter. Basically, increasing the value will make it take longer for panning a page to change pages whereas decreasing does the opposite.
+
+``zoom_multiplier``\
+Defaults to `1`. When in continuous mode, a zoom level is automatically calculated and applied for the entire image. It attempts to be smart and zoom into a perfect fraction of the total size of all the stitched pages. The `zoom_multiplier` is an additional factor that is multiplied to this zoom level. Greater than 1 increases the zoom and less than 1 decreases it.
 
 ## License
 GPLv3
