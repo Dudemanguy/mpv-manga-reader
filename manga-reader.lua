@@ -53,11 +53,21 @@ end
 function calculate_zoom_level(dims, pages)
 	dims[0] = tonumber(dims[0])
 	dims[1] = tonumber(dims[1]) * opts.continuous_size
-	local scaled_width = opts.monitor_height/dims[1] * dims[0]
-	if opts.monitor_width >= opts.continuous_size*scaled_width then
+	local display_width = mp.get_property("display-width")
+	local display_height = mp.get_property("display-height")
+	if display_width ~= nil and display_height ~= nil then
+		local display_dpi = mp.get_property("display-hidpi-scale")
+		display_width = display_width / display_dpi
+		display_height = display_height / display_dpi
+	else
+		display_width = opts.monitor_width
+		display_height = opts.monitor_height
+	end
+	local scaled_width = display_height/dims[1] * dims[0]
+	if display_width >= opts.continuous_size*scaled_width then
 		return pages
 	else
-		return opts.monitor_width / scaled_width
+		return display_width / scaled_width
 	end
 end
 
@@ -71,7 +81,17 @@ function check_aspect_ratio(index)
 	else
 		n = b[1]
 	end
-	local aspect_ratio = opts.monitor_width / opts.monitor_height
+	local aspect_ratio
+	local display_width = mp.get_property("display-width")
+	local display_height = mp.get_property("display-height")
+	if display_width ~= nil and display_height ~= nil then
+		local display_dpi = mp.get_property("display-hidpi-scale")
+		display_width = display_width / display_dpi
+		display_height = display_height / display_dpi
+		aspect_ratio = display_width / display_height
+	else
+		aspect_ratio = opts.monitor_width / opts.monitor_height
+	end
 	if m/n <= aspect_ratio then
 		return true
 	else
@@ -183,7 +203,6 @@ function set_lavfi_complex_continuous(arg, finish)
 	local split = str_split(arg, " ")
 	local index = mp.get_property_number("playlist-pos")
 	local pages = finish - index
-	print(pages)
 	local max_width = find_max_width(pages)
 	for i=0, pages do
 		if filedims[index+i][0] ~= max_width then
