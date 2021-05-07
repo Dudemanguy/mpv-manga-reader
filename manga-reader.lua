@@ -245,6 +245,10 @@ end
 function set_lavfi_complex_double()
 	local index = mp.get_property_number("playlist-pos")
 	if not valid_width[index] or not similar_height[index] then
+		if mp.get_property("lavfi-complex") ~= "" then
+			mp.set_property("lavfi-complex", "")
+			mp.set_property("force-media-title", "")
+		end
 		return
 	end
 	local hstack
