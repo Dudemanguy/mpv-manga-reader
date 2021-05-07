@@ -48,10 +48,10 @@ Defaults to `no`. Tells the manga reader whether or not to start in double page 
 Defaults to `yes`. Tells the manga reader whether or not to start in manga mode (i.e. read right-to-left or left-to-right).
 
 ``monitor_height``\
-Deprecated since recent enough mpv builds support the `display-height` property. Kept around for compatibility reasons. Defaults to `1080`. The height of the display. Apply any DPI scaling used to this value (i.e. a 4096x2160 display with a DPI scale of 2 should be set to 1080).
+Deprecated since recent enough mpv builds support the `display-height` property. Kept around for compatibility reasons. Defaults to `1080`. The height of the display. Apply any DPI scaling used to this value (i.e. a 3840x2160 display with a DPI scale of 2 should be set to 1080).
 
 ``monitor_width``\
-Deprecated since recent enough mpv builds support the `display-width` property. Kept around for compatibility reasons. Defaults to `1920`. The width of the display. Apply any DPI scaling used to this value (i.e. a 4096x2160 display with a DPI scale of 2 should be set to 1920).
+Deprecated since recent enough mpv builds support the `display-width` property. Kept around for compatibility reasons. Defaults to `1920`. The width of the display. Apply any DPI scaling used to this value (i.e. a 3840x2160 display with a DPI scale of 2 should be set to 1920).
 
 ``pan_size``\
 Defaults to `0.05`. Defines the magnitude of pan-up and pan-down.
