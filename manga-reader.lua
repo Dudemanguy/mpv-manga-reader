@@ -110,6 +110,16 @@ function check_images()
 	end
 end
 
+function set_custom_title(last_index)
+	local first_page = mp.get_property("filename")
+	local last_page = mp.get_property("track-list/"..last_index.."/title")
+	local ext = string.gsub(first_page, ".*%.", "")
+	first_page = string.gsub(first_page, "%..*", "")
+	last_page = string.gsub(last_page, "%..*", "")
+	local new_title = first_page.."-"..last_page.."."..ext
+	mp.set_property("force-media-title", new_title)
+end
+
 function create_modes()
 	local index = mp.get_property("playlist-pos")
 	local len = mp.get_property_number("playlist-count")
@@ -129,12 +139,16 @@ function create_modes()
 	store_file_dims(index, finish)
 	if opts.double then
 		set_lavfi_complex_double()
+		if mp.get_property("lavfi-complex") ~= "" then
+			set_custom_title(1)
+		end
 	else
 		local arg = "[vid1]"
 		for i=1, finish - index do
 			arg = arg.." [vid"..tostring(i+1).."]"
 		end
 		set_lavfi_complex_continuous(arg, finish)
+		set_custom_title(finish - index)
 	end
 end
 
@@ -610,8 +624,8 @@ function toggle_reader()
 			initiated = false
 			remove_keys()
 			restore_properties()
-			mp.unobserve_property(remove_non_images)
 			mp.unobserve_property(check_y_pos)
+			mp.unobserve_property(remove_non_images)
 			mp.set_property("video-zoom", 0)
 			mp.set_property("video-align-y", 0)
 			mp.set_property("video-pan-y", 0)
