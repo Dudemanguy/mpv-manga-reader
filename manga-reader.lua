@@ -729,6 +729,7 @@ function toggle_double_page()
 		mp.osd_message("Double Page Mode Off")
 		opts.double = false
 		mp.set_property("lavfi-complex", "")
+		mp.set_property("force-media-title", "")
 	else
 		mp.osd_message("Double Page Mode On")
 		opts.continuous = false
