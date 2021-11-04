@@ -32,8 +32,6 @@ local opts = {
 	continuous_size = 8,
 	double = false,
 	manga = true,
-	monitor_height = 1080,
-	monitor_width = 1920,
 	pan_size = 0.05,
 	similar_height_threshold = 50,
 	skip_size = 10,
@@ -51,18 +49,16 @@ function add_tracks(start, finish)
 end
 
 function calculate_zoom_level(dims, pages)
-	dims[0] = tonumber(dims[0])
-	dims[1] = tonumber(dims[1]) * opts.continuous_size
 	local display_width = mp.get_property("display-width")
 	local display_height = mp.get_property("display-height")
-	if display_width ~= nil and display_height ~= nil then
-		local display_dpi = mp.get_property("display-hidpi-scale")
-		display_width = display_width / display_dpi
-		display_height = display_height / display_dpi
-	else
-		display_width = opts.monitor_width
-		display_height = opts.monitor_height
-	end
+	local display_dpi = mp.get_property("display-hidpi-scale")
+
+	display_width = display_width / display_dpi
+	display_height = display_height / display_dpi
+
+	dims[0] = tonumber(dims[0])
+	dims[1] = tonumber(dims[1]) * opts.continuous_size
+
 	local scaled_width = display_height/dims[1] * dims[0]
 	if display_width >= opts.continuous_size*scaled_width then
 		return pages
@@ -196,7 +192,7 @@ function log2(num)
 end
 
 function check_lavfi_complex(event)
-	if event.file_error or event.error then
+	if event.file_error then
 		mp.set_property("lavfi-complex", "")
 		local index = mp.get_property_number("playlist-pos")
 		if opts.continuous then
