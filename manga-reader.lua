@@ -96,10 +96,9 @@ function check_aspect_ratio(index)
 end
 
 function check_images()
-	local audio = mp.get_property("audio-params")
-	local frame_count = mp.get_property_number("estimated-frame-count")
+	local image = mp.get_property("current-tracks/video/image")
 	local length = mp.get_property_number("playlist-count")
-	if audio == nil and (frame_count == 1 or frame_count == 0) and length > 1 then
+	if image and length > 1 then
 		return true
 	else
 		return false
