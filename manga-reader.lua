@@ -96,7 +96,7 @@ function check_aspect_ratio(index)
 end
 
 function check_images()
-	local image = mp.get_property("current-tracks/video/image")
+	local image = mp.get_property_bool("current-tracks/video/image")
 	local length = mp.get_property_number("playlist-count")
 	if image and length > 1 then
 		return true
