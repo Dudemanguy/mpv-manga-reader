@@ -85,8 +85,6 @@ function check_aspect_ratio(index)
 		display_width = display_width / display_dpi
 		display_height = display_height / display_dpi
 		aspect_ratio = display_width / display_height
-	else
-		aspect_ratio = opts.monitor_width / opts.monitor_height
 	end
 	if m/n <= aspect_ratio then
 		return true
