@@ -4,6 +4,7 @@ local ext = {
 	".7z",
 	".avif",
 	".bmp",
+	".cbr",
 	".cbz",
 	".gif",
 	".jpg",
