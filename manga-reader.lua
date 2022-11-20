@@ -85,6 +85,8 @@ function check_aspect_ratio(index)
 		display_width = display_width / display_dpi
 		display_height = display_height / display_dpi
 		aspect_ratio = display_width / display_height
+	else
+		return true
 	end
 	if m/n <= aspect_ratio then
 		return true
@@ -170,16 +172,11 @@ function store_file_dims(start, finish)
 		filedims[i+start] = dims
 	end
 	for i=start, finish - 1 do
-		local good_aspect_ratio = check_aspect_ratio(i)
+		valid_width[i] = check_aspect_ratio(i)
 		if math.abs(filedims[i][1] - filedims[i+1][1]) < opts.similar_height_threshold then
 			similar_height[i] = true
 		else
 			similar_height[i] = false
-		end
-		if not good_aspect_ratio then
-			valid_width[i] = false
-		else
-			valid_width[i] = true
 		end
 	end
 end
