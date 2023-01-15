@@ -39,6 +39,7 @@ local opts = {
 	trigger_zone = 0.05,
 	zoom_multiplier = 1,
 }
+local lavfi_scale = {}
 local similar_height = {}
 local valid_width = {}
 
@@ -162,11 +163,19 @@ function store_file_dims(start, finish)
 	end
 	for i=0, finish - start do
 		local dims = {}
+		local failures = 0
 		local width = nil
 		local height = nil
-		while width == nil or height == nil do
+		-- Don't loop forever here if we can't get this from the container.
+		while (width == nil or height == nil) and failures < 20 do
 			width = mp.get_property("track-list/"..tostring(i).."/demux-w")
 			height = mp.get_property("track-list/"..tostring(i).."/demux-h")
+			failures = failures + 1
+		end
+		if width == nil or height == nil then
+			-- Just make up stuff in this case so double page can work.
+			width = 300
+			height = 500
 		end
 		dims[0] = width
 		dims[1] = height
@@ -174,6 +183,9 @@ function store_file_dims(start, finish)
 	end
 	for i=start, finish - 1 do
 		valid_width[i] = check_aspect_ratio(i)
+		if (filedims[i][0] ~= filedims[i+1][0] and filedims[i][1] ~= filedims[i+1][1]) then
+			lavfi_scale[i] = true
+		end
 		if math.abs(filedims[i][1] - filedims[i+1][1]) < opts.similar_height_threshold then
 			similar_height[i] = true
 		else
@@ -244,13 +256,17 @@ function set_lavfi_complex_double()
 	end
 	local hstack
 	local external_vid = "[vid2]"
-	external_vid = string.sub(external_vid, 0, 5).."_scale]"
+	if lavfi_scale[index] then
+		external_vid = string.sub(external_vid, 0, 5).."_scale]"
+	end
 	if opts.manga then
 		hstack = external_vid.." [vid1] hstack [vo]"
 	else
 		hstack = "[vid1] "..external_vid.." hstack [vo]"
 	end
-	hstack = "[vid2] scale="..filedims[index][0].."x"..filedims[index][1]..":flags=lanczos [vid2_scale]; "..hstack
+	if lavfi_scale[index] then
+		hstack = "[vid2] scale="..filedims[index][0].."x"..filedims[index][1]..":flags=lanczos [vid2_scale]; "..hstack
+	end
 	mp.set_property("lavfi-complex", hstack)
 end
 
