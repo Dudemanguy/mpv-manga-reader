@@ -236,13 +236,13 @@ function set_lavfi_complex_continuous(arg, finish)
 	mp.set_property("lavfi-complex", vstack)
 	local index = mp.get_property_number("playlist-pos")
 	local zoom_level = calculate_zoom_level(filedims[index], pages+1)
-	mp.set_property("video-zoom", opts.zoom_multiplier * log2(zoom_level))
-	mp.set_property("video-pan-y", 0)
+	mp.set_property_number("video-zoom", opts.zoom_multiplier * log2(zoom_level))
+	mp.set_property_number("video-pan-y", 0)
 	if backwards then
-		mp.set_property("video-align-y", 1)
+		mp.set_property_number("video-align-y", 1)
 		backwards = false
 	else
-		mp.set_property("video-align-y", -1)
+		mp.set_property_number("video-align-y", -1)
 	end
 end
 
@@ -301,7 +301,7 @@ function next_page()
 			return
 		end
 	end
-	mp.set_property("playlist-pos", new_index)
+	mp.set_property_number("playlist-pos", new_index)
 end
 
 function prev_page()
@@ -328,44 +328,44 @@ function prev_page()
 		if new_index == index then
 			return
 		end
-		mp.set_property("video-align-y", 1)
+		mp.set_property_number("video-align-y", 1)
 	else
 		new_index = math.max(0, index - 1)
 		if new_index == index then
 			return
 		end
 	end
-	mp.set_property("playlist-pos", new_index)
+	mp.set_property_number("playlist-pos", new_index)
 end
 
 function next_single_page()
 	local len = mp.get_property_number("playlist-count")
 	local index = mp.get_property_number("playlist-pos")
 	local new_index = math.min(index + 1, len - 1)
-	mp.set_property("playlist-pos", new_index)
+	mp.set_property_number("playlist-pos", new_index)
 end
 
 function prev_single_page()
 	local index = mp.get_property_number("playlist-pos")
 	local new_index = math.max(0, index - 1)
-	mp.set_property("playlist-pos", new_index)
+	mp.set_property_number("playlist-pos", new_index)
 end
 
 function skip_forward()
 	local len = mp.get_property_number("playlist-count")
 	local index = mp.get_property_number("playlist-pos")
 	local new_index = math.min(index + opts.skip_size, len - 1)
-	mp.set_property("playlist-pos", new_index)
+	mp.set_property_number("playlist-pos", new_index)
 end
 
 function skip_backward()
 	local index = mp.get_property_number("playlist-pos")
 	local new_index = math.max(0, index - opts.skip_size)
-	mp.set_property("playlist-pos", new_index)
+	mp.set_property_number("playlist-pos", new_index)
 end
 
 function first_page()
-	mp.set_property("playlist-pos", 0)
+	mp.set_property_number("playlist-pos", 0)
 end
 
 function last_page()
@@ -387,7 +387,7 @@ function last_page()
 	else
 		index = len - 1
 	end
-	mp.set_property("playlist-pos", index)
+	mp.set_property_number("playlist-pos", index)
 end
 
 function pan_up()
@@ -462,7 +462,7 @@ function jump_page_go()
 	if (dest > len - 1) or (dest < 0) then
 		mp.osd_message("Specified page does not exist")
 	else
-		mp.set_property("playlist-pos", dest)
+		mp.set_property_number("playlist-pos", dest)
 	end
 	remove_jump_keys()
 	jump = false
@@ -631,24 +631,24 @@ function toggle_reader()
 			mp.add_key_binding("d", "toggle-double-page", toggle_double_page)
 			mp.add_key_binding("m", "toggle-manga-mode", toggle_manga_mode)
 			mp.register_event("end-file", check_lavfi_complex)
-			mp.set_property("playlist-pos", index)
+			mp.set_property_number("playlist-pos", index)
 		else
 			initiated = false
 			remove_keys()
 			restore_properties()
 			mp.unobserve_property(check_y_pos)
 			mp.unobserve_property(remove_non_images)
-			mp.set_property("video-zoom", 0)
-			mp.set_property("video-align-y", 0)
-			mp.set_property("video-pan-y", 0)
-			mp.set_property("lavfi-complex", "")
+			mp.set_property_number("video-zoom", 0)
+			mp.set_property_number("video-align-y", 0)
+			mp.set_property_number("video-pan-y", 0)
+			mp.set_property_number("lavfi-complex", "")
 			mp.set_property_bool("force-window", false)
 			mp.remove_key_binding("toggle-continuous-mode")
 			mp.remove_key_binding("toggle-double-page")
 			mp.remove_key_binding("toggle-manga-mode")
 			mp.osd_message("Closing Reader")
 			mp.unregister_event(check_lavfi_complex)
-			mp.set_property("playlist-pos", index)
+			mp.set_property_number("playlist-pos", index)
 		end
 	else
 		if not first_start then
@@ -719,9 +719,9 @@ function toggle_continuous_mode()
 		opts.continuous = false
 		mp.unobserve_property(check_y_pos)
 		mp.set_property("lavfi-complex", "")
-		mp.set_property("video-zoom", 0)
-		mp.set_property("video-align-y", 0)
-		mp.set_property("video-pan-y", 0)
+		mp.set_property_number("video-zoom", 0)
+		mp.set_property_number("video-align-y", 0)
+		mp.set_property_number("video-pan-y", 0)
 	else
 		mp.osd_message("Continuous Mode On")
 		opts.double = false
@@ -729,7 +729,7 @@ function toggle_continuous_mode()
 		mp.observe_property("video-pan-y", number, check_y_pos)
 	end
 	local index = mp.get_property_number("playlist-pos")
-	mp.set_property("playlist-pos", index)
+	mp.set_property_number("playlist-pos", index)
 end
 
 function toggle_double_page()
@@ -744,7 +744,7 @@ function toggle_double_page()
 		opts.double = true
 	end
 	local index = mp.get_property_number("playlist-pos")
-	mp.set_property("playlist-pos", index)
+	mp.set_property_number("playlist-pos", index)
 end
 
 function toggle_manga_mode()
@@ -757,7 +757,7 @@ function toggle_manga_mode()
 	end
 	set_keys()
 	local index = mp.get_property_number("playlist-pos")
-	mp.set_property("playlist-pos", index)
+	mp.set_property_number("playlist-pos", index)
 end
 
 mp.add_hook("on_preloaded", 50, create_modes)
