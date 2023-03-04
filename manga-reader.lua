@@ -52,9 +52,9 @@ function add_tracks(start, finish)
 end
 
 function calculate_zoom_level(dims, pages)
-	local display_width = mp.get_property("display-width")
-	local display_height = mp.get_property("display-height")
-	local display_dpi = mp.get_property("display-hidpi-scale")
+	local display_width = mp.get_property_number("display-width")
+	local display_height = mp.get_property_number("display-height")
+	local display_dpi = mp.get_property_number("display-hidpi-scale")
 
 	display_width = display_width / display_dpi
 	display_height = display_height / display_dpi
@@ -81,10 +81,10 @@ function check_aspect_ratio(index)
 		n = b[1]
 	end
 	local aspect_ratio
-	local display_width = mp.get_property("display-width")
-	local display_height = mp.get_property("display-height")
+	local display_width = mp.get_property_number("display-width")
+	local display_height = mp.get_property_number("display-height")
 	if display_width ~= nil and display_height ~= nil then
-		local display_dpi = mp.get_property("display-hidpi-scale")
+		local display_dpi = mp.get_property_number("display-hidpi-scale")
 		display_width = display_width / display_dpi
 		display_height = display_height / display_dpi
 		aspect_ratio = display_width / display_height
@@ -119,7 +119,7 @@ function set_custom_title(last_index)
 end
 
 function create_modes()
-	local index = mp.get_property("playlist-pos")
+	local index = mp.get_property_number("playlist-pos")
 	local len = mp.get_property_number("playlist-count")
 	local pages
 	if opts.double then
@@ -169,8 +169,8 @@ function store_file_dims(start, finish)
 		local height = nil
 		-- Don't loop forever here if we can't get this from the container.
 		while (width == nil or height == nil) and failures < 20 do
-			width = mp.get_property("track-list/"..tostring(i).."/demux-w")
-			height = mp.get_property("track-list/"..tostring(i).."/demux-h")
+			width = mp.get_property_number("track-list/"..tostring(i).."/demux-w")
+			height = mp.get_property_number("track-list/"..tostring(i).."/demux-h")
 			failures = failures + 1
 		end
 		if width == nil or height == nil then
@@ -684,7 +684,7 @@ function check_y_pos()
 	else
 		middle_index = index + 1
 	end
-	local total_height = mp.get_property("height")
+	local total_height = mp.get_property_number("height")
 	if total_height == nil then
 		return
 	end
