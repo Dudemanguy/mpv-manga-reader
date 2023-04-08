@@ -301,7 +301,7 @@ function next_page()
 			return
 		end
 	end
-	mp.set_property_number("playlist-pos", new_index)
+	mp.commandv("playlist-play-index", new_index)
 end
 
 function prev_page()
@@ -335,37 +335,37 @@ function prev_page()
 			return
 		end
 	end
-	mp.set_property_number("playlist-pos", new_index)
+	mp.commandv("playlist-play-index", new_index)
 end
 
 function next_single_page()
 	local len = mp.get_property_number("playlist-count")
 	local index = mp.get_property_number("playlist-pos")
 	local new_index = math.min(index + 1, len - 1)
-	mp.set_property_number("playlist-pos", new_index)
+	mp.commandv("playlist-play-index", new_index)
 end
 
 function prev_single_page()
 	local index = mp.get_property_number("playlist-pos")
 	local new_index = math.max(0, index - 1)
-	mp.set_property_number("playlist-pos", new_index)
+	mp.commandv("playlist-play-index", new_index)
 end
 
 function skip_forward()
 	local len = mp.get_property_number("playlist-count")
 	local index = mp.get_property_number("playlist-pos")
 	local new_index = math.min(index + opts.skip_size, len - 1)
-	mp.set_property_number("playlist-pos", new_index)
+	mp.commandv("playlist-play-index", new_index)
 end
 
 function skip_backward()
 	local index = mp.get_property_number("playlist-pos")
 	local new_index = math.max(0, index - opts.skip_size)
-	mp.set_property_number("playlist-pos", new_index)
+	mp.commandv("playlist-play-index", new_index)
 end
 
 function first_page()
-	mp.set_property_number("playlist-pos", 0)
+	mp.commandv("playlist-play-index", 0)
 end
 
 function last_page()
@@ -387,7 +387,7 @@ function last_page()
 	else
 		index = len - 1
 	end
-	mp.set_property_number("playlist-pos", index)
+	mp.commandv("playlist-play-index", index)
 end
 
 function pan_up()
@@ -462,7 +462,7 @@ function jump_page_go()
 	if (dest > len - 1) or (dest < 0) then
 		mp.osd_message("Specified page does not exist")
 	else
-		mp.set_property_number("playlist-pos", dest)
+		mp.commandv("playlist-play-index", dest)
 	end
 	remove_jump_keys()
 	jump = false
@@ -631,7 +631,7 @@ function toggle_reader()
 			mp.add_key_binding("d", "toggle-double-page", toggle_double_page)
 			mp.add_key_binding("m", "toggle-manga-mode", toggle_manga_mode)
 			mp.register_event("end-file", check_lavfi_complex)
-			mp.set_property_number("playlist-pos", index)
+			mp.commandv("playlist-play-index", index)
 		else
 			initiated = false
 			remove_keys()
@@ -648,7 +648,7 @@ function toggle_reader()
 			mp.remove_key_binding("toggle-manga-mode")
 			mp.osd_message("Closing Reader")
 			mp.unregister_event(check_lavfi_complex)
-			mp.set_property_number("playlist-pos", index)
+			mp.commandv("playlist-play-index", index)
 		end
 	else
 		if not first_start then
@@ -729,7 +729,7 @@ function toggle_continuous_mode()
 		mp.observe_property("video-pan-y", number, check_y_pos)
 	end
 	local index = mp.get_property_number("playlist-pos")
-	mp.set_property_number("playlist-pos", index)
+	mp.commandv("playlist-play-index", index)
 end
 
 function toggle_double_page()
@@ -744,7 +744,7 @@ function toggle_double_page()
 		opts.double = true
 	end
 	local index = mp.get_property_number("playlist-pos")
-	mp.set_property_number("playlist-pos", index)
+	mp.commandv("playlist-play-index", index)
 end
 
 function toggle_manga_mode()
@@ -757,7 +757,7 @@ function toggle_manga_mode()
 	end
 	set_keys()
 	local index = mp.get_property_number("playlist-pos")
-	mp.set_property_number("playlist-pos", index)
+	mp.commandv("playlist-play-index", index)
 end
 
 mp.add_hook("on_preloaded", 50, create_modes)
