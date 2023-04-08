@@ -184,7 +184,7 @@ function store_file_dims(start, finish)
 	end
 	for i=start, finish - 1 do
 		valid_width[i] = check_aspect_ratio(i)
-		if (filedims[i][0] ~= filedims[i+1][0] and filedims[i][1] ~= filedims[i+1][1]) then
+		if filedims[i][1] ~= filedims[i+1][1] then
 			lavfi_scale[i] = true
 		end
 		if math.abs(filedims[i][1] - filedims[i+1][1]) < opts.similar_height_threshold then
