@@ -311,15 +311,12 @@ function prev_page()
 	if opts.double then
 		new_index = math.max(0, index - 2)
 		if (valid_width[new_index] == nil) then
-			add_tracks(new_index, index)
-			store_file_dims(new_index, index)
+			store_file_dims(new_index, index - 1)
 		end
-		if valid_width[new_index] and similar_height[new_index] then
-			new_index = index - 2
-		else
+		if not valid_width[new_index] or not similar_height[new_index] then
 			new_index = index - 1
+			new_index = math.max(0, new_index)
 		end
-		new_index = math.max(0, new_index)
 		if new_index == index then
 			return
 		end
@@ -376,7 +373,6 @@ function last_page()
 		backwards = true
 	elseif opts.double then
 		if (valid_width[len - 2] == nil) then
-			add_tracks(len - 3, len - 1)
 			store_file_dims(len - 3, len - 1)
 		end
 		if valid_width[len - 2] and similar_height[len - 2] then
