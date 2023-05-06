@@ -24,6 +24,7 @@ local filedims = {}
 local initiated = false
 local input = ""
 local jump = false
+local upwards = false
 local init_values = {
 	force_window = false,
 	image_display_duration = 1,
@@ -150,6 +151,25 @@ function create_modes()
 	end
 end
 
+function double_page_backwards_hack(index)
+	--TODO: come up with a better way to handle this edge case
+	if backwards then
+		backwards = false
+		height0 = mp.get_property_number("track-list/0/demux-h")
+		height1 = mp.get_property_number("track-list/1/demux-h")
+		if height0 ~= filedims[index][1] or height1 ~= filedims[index + 1][1] then
+			-- assume bad dims, clear old values and iterate forward one page and return
+			valid_width[index] = nil
+			valid_width[index + 1] = nil
+			similar_height[index] = nil
+			similar_height[index + 1] = nil
+			mp.set_property("lavfi-complex", "")
+			mp.set_property("force-media-title", "")
+			mp.commandv("playlist-play-index", index + 1)
+		end
+	end
+end
+
 function store_file_dims(start, finish)
 	local len = mp.get_property_number("playlist-count")
 	local needs_dims = false
@@ -238,9 +258,9 @@ function set_lavfi_complex_continuous(arg, finish)
 	local zoom_level = calculate_zoom_level(filedims[index], pages+1)
 	mp.set_property_number("video-zoom", opts.zoom_multiplier * log2(zoom_level))
 	mp.set_property_number("video-pan-y", 0)
-	if backwards then
+	if upwards then
 		mp.set_property_number("video-align-y", 1)
-		backwards = false
+		upwards = false
 	else
 		mp.set_property_number("video-align-y", -1)
 	end
@@ -248,6 +268,7 @@ end
 
 function set_lavfi_complex_double()
 	local index = mp.get_property_number("playlist-pos")
+	double_page_backwards_hack(index)
 	if not valid_width[index] or not similar_height[index] then
 		if mp.get_property("lavfi-complex") ~= "" then
 			mp.set_property("lavfi-complex", "")
@@ -320,6 +341,7 @@ function prev_page()
 		if new_index == index then
 			return
 		end
+		backwards = true
 	elseif opts.continuous then
 		new_index = math.max(0, index - opts.continuous_size)
 		if new_index == index then
@@ -370,7 +392,7 @@ function last_page()
 	local index = 0;
 	if opts.continuous then
 		index = len - opts.continuous_size
-		backwards = true
+		upwards = true
 	elseif opts.double then
 		if (valid_width[len - 2] == nil) then
 			store_file_dims(len - 3, len - 1)
@@ -693,14 +715,14 @@ function check_y_pos()
 			next_page()
 		end
 		if y_pos > 0 and not first_chunk then
-			backwards = true
+			upwards = true
 			prev_page()
 		end
 	elseif y_align == 1 then
 		local height = filedims[middle_index][1]
 		local top_threshold = 1 - height / total_height + opts.trigger_zone
 		if y_pos > top_threshold and not first_chunk then
-			backwards = true
+			upwards = true
 			prev_page()
 		end
 		if y_pos < 0 and not last_chunk then
