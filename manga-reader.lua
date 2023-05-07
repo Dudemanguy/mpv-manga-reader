@@ -18,7 +18,7 @@ local ext = {
 	".webp",
 	".zip"
 }
-local backwards = false
+local double_page_check = false
 local first_start = true
 local filedims = {}
 local initiated = false
@@ -99,6 +99,15 @@ function check_aspect_ratio(index)
 	end
 end
 
+function check_double_page_dims(index)
+	-- additional check if we don't know the correct index to go to
+	-- can happen when going backwards or skipping to the last page
+	if double_page_check and (not valid_width[index] or not similar_height[index]) then
+		mp.commandv("playlist-play-index", index + 1)
+	end
+	double_page_check = false
+end
+
 function check_images()
 	local image = mp.get_property_bool("current-tracks/video/image")
 	local length = mp.get_property_number("playlist-count")
@@ -137,6 +146,7 @@ function create_modes()
 	add_tracks(index, finish)
 	store_file_dims(index, finish)
 	if opts.double then
+		check_double_page_dims(index)
 		set_lavfi_complex_double()
 		if mp.get_property("lavfi-complex") ~= "" then
 			set_custom_title(1)
@@ -148,25 +158,6 @@ function create_modes()
 		end
 		set_lavfi_complex_continuous(arg, finish)
 		set_custom_title(finish - index)
-	end
-end
-
-function double_page_backwards_hack(index)
-	--TODO: come up with a better way to handle this edge case
-	if backwards then
-		backwards = false
-		height0 = mp.get_property_number("track-list/0/demux-h")
-		height1 = mp.get_property_number("track-list/1/demux-h")
-		if height0 ~= filedims[index][1] or height1 ~= filedims[index + 1][1] then
-			-- assume bad dims, clear old values and iterate forward one page and return
-			valid_width[index] = nil
-			valid_width[index + 1] = nil
-			similar_height[index] = nil
-			similar_height[index + 1] = nil
-			mp.set_property("lavfi-complex", "")
-			mp.set_property("force-media-title", "")
-			mp.commandv("playlist-play-index", index + 1)
-		end
 	end
 end
 
@@ -268,7 +259,6 @@ end
 
 function set_lavfi_complex_double()
 	local index = mp.get_property_number("playlist-pos")
-	double_page_backwards_hack(index)
 	if not valid_width[index] or not similar_height[index] then
 		if mp.get_property("lavfi-complex") ~= "" then
 			mp.set_property("lavfi-complex", "")
@@ -331,17 +321,16 @@ function prev_page()
 	local new_index
 	if opts.double then
 		new_index = math.max(0, index - 2)
-		if (valid_width[new_index] == nil) then
-			store_file_dims(new_index, index - 1)
+		if valid_width[new_index] == nil then
+			double_page_check = true
 		end
-		if not valid_width[new_index] or not similar_height[new_index] then
+		if valid_width[new_index] == false or similar_height[new_index] == false then
 			new_index = index - 1
 			new_index = math.max(0, new_index)
 		end
 		if new_index == index then
 			return
 		end
-		backwards = true
 	elseif opts.continuous then
 		new_index = math.max(0, index - opts.continuous_size)
 		if new_index == index then
@@ -394,14 +383,12 @@ function last_page()
 		index = len - opts.continuous_size
 		upwards = true
 	elseif opts.double then
-		if (valid_width[len - 2] == nil) then
-			store_file_dims(len - 3, len - 1)
-		end
-		if valid_width[len - 2] and similar_height[len - 2] then
-			index = len - 2
-		else
+		if valid_width[len - 2] == false and similar_height[len - 2] == false then
 			index = len - 1
+		else
+			index = len - 2
 		end
+		double_page_check = true
 	else
 		index = len - 1
 	end
