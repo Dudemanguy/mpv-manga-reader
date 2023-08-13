@@ -109,9 +109,10 @@ function check_double_page_dims(index)
 end
 
 function check_images()
+	local audio = mp.get_property("audio-params")
 	local image = mp.get_property_bool("current-tracks/video/image")
 	local length = mp.get_property_number("playlist-count")
-	if image and length > 1 then
+	if audio == nil and image and length > 1 then
 		return true
 	else
 		return false
