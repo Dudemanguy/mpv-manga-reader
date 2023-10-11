@@ -1,5 +1,3 @@
-require "mp.options"
-local utils = require "mp.utils"
 local ext = {
 	".7z",
 	".avif",
@@ -769,4 +767,4 @@ end
 mp.add_hook("on_preloaded", 50, create_modes)
 mp.register_event("file-loaded", init)
 mp.add_key_binding("y", "toggle-reader", toggle_reader)
-read_options(opts, "manga-reader")
+require "mp.options".read_options(opts, "manga-reader")
