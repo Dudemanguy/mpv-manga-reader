@@ -37,7 +37,6 @@ local opts = {
 	similar_height_threshold = 50,
 	skip_size = 10,
 	trigger_zone = 0.05,
-	zoom_multiplier = 1,
 }
 local lavfi_scale = {}
 local similar_height = {}
@@ -47,25 +46,6 @@ function add_tracks(start, finish)
 	for i=start + 1, finish do
 		local new_file = mp.get_property("playlist/"..tostring(i).."/filename")
 		mp.commandv("video-add", new_file, "auto")
-	end
-end
-
-function calculate_zoom_level(dims, pages)
-	local display_width = mp.get_property_number("display-width")
-	local display_height = mp.get_property_number("display-height")
-	local display_dpi = mp.get_property_number("display-hidpi-scale")
-
-	display_width = display_width / display_dpi
-	display_height = display_height / display_dpi
-
-	dims[0] = tonumber(dims[0])
-	dims[1] = tonumber(dims[1]) * opts.continuous_size
-
-	local scaled_width = display_height/dims[1] * dims[0]
-	if display_width >= opts.continuous_size*scaled_width then
-		return pages
-	else
-		return display_width / scaled_width
 	end
 end
 
@@ -248,8 +228,6 @@ function set_lavfi_complex_continuous(arg, finish)
 	vstack = vstack.."vstack=inputs="..tostring(pages + 1).." [vo]"
 	mp.set_property("lavfi-complex", vstack)
 	local index = mp.get_property_number("playlist-pos")
-	local zoom_level = calculate_zoom_level(filedims[index], pages+1)
-	mp.set_property_number("video-zoom", opts.zoom_multiplier * log2(zoom_level))
 	mp.set_property_number("video-pan-y", 0)
 	if upwards then
 		mp.set_property_number("video-align-y", 1)
@@ -645,7 +623,6 @@ function toggle_reader()
 			restore_properties()
 			mp.unobserve_property(check_y_pos)
 			mp.unobserve_property(remove_non_images)
-			mp.set_property_number("video-zoom", 0)
 			mp.set_property_number("video-align-y", 0)
 			mp.set_property_number("video-pan-y", 0)
 			mp.set_property("lavfi-complex", "")
@@ -726,7 +703,6 @@ function toggle_continuous_mode()
 		opts.continuous = false
 		mp.unobserve_property(check_y_pos)
 		mp.set_property("lavfi-complex", "")
-		mp.set_property_number("video-zoom", 0)
 		mp.set_property_number("video-align-y", 0)
 		mp.set_property_number("video-pan-y", 0)
 	else
