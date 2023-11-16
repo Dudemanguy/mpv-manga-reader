@@ -128,6 +128,9 @@ function set_custom_title(last_index)
 end
 
 function create_modes()
+	if first_start and not opts.auto_start then
+		return
+	end
 	local index = mp.get_property_number("playlist-pos")
 	local len = mp.get_property_number("playlist-count")
 	local pages
