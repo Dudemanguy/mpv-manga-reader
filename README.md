@@ -9,6 +9,7 @@ By default, starting mpv-manga-reader is bound to `y`. When turning the reader o
 * toggle-manga-reader: `y`
 * toggle-double-page: `d`
 * toggle-continuous-mode: `c`
+* switch-padding-mode: `p`
 * toggle-manga-mode: `m`
 * next-page: `LEFT`
 * prev-page: `RIGHT`
@@ -58,6 +59,12 @@ Defaults to `10`. This is the interval used by the `skip-forward` and `skip-back
 
 ``trigger_zone``\
 Defaults to `0.05`. When in continuous mode, the manga reader attempts to be smart and change pages for you once a pan value goes past a certain amount (determined by the page dimensions and the vertical alignment). The `trigger_zone` is an additional value added to this parameter. Basically, increasing the value will make it take longer for panning a page to change pages whereas decreasing does the opposite.
+
+``true_color``\
+Defaults to `yes`. Tells the manga reader whether to fix an otherwise present pixel format problem with double pages by blindly converting every double page to yuv444p.
+
+``padding``\
+Defaults to `up`. Can be chosen from `up`, `pad` or `down`. Decides whether to, in order to create double pages, equalize the sizes of the pages by scaling the smaller page up, padding the smaller page with the background color, or scaling the larger page down.
 
 ## License
 GPLv3
