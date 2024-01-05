@@ -16,8 +16,6 @@ local ext = {
 	".webp",
 	".zip"
 }
-local bothsmaller = false
-local bothbigger = false
 local double_page_check = false
 local first_start = true
 local filedims = {}
@@ -36,11 +34,9 @@ local opts = {
 	double = false,
 	manga = true,
 	pan_size = 0.05,
-	similar_height_threshold = 50,
+	similar_height_threshold = 200,
 	skip_size = 10,
 	trigger_zone = 0.05,
-	true_color = true,
-	padding = "up"
 }
 local lavfi_scale = {}
 local similar_height = {}
@@ -241,19 +237,6 @@ function set_lavfi_complex_continuous(arg, finish)
 	end
 end
 
-function size_check()
-   local index = mp.get_property_number("playlist-pos")
-   local osdh = mp.get_property_number("osd-dimensions/h")
-   if filedims[index][1] == filedims[index+1][1] then
-      return
-   end
-   if filedims[index][1] <= osdh and filedims[index+1][1] <= osdh then
-      bothsmaller = true
-   elseif filedims[index][1] >= osdh and filedims[index+1][1] >= osdh then
-      bothbigger = true
-   end
-end
-
 function set_lavfi_complex_double()
 	local index = mp.get_property_number("playlist-pos")
 	if not valid_width[index] or not similar_height[index] then
@@ -263,62 +246,16 @@ function set_lavfi_complex_double()
 		end
 		return
 	end
-	local maxh = math.max(filedims[index][1], filedims[index+1][1])
-	local minh = math.min(filedims[index][1], filedims[index+1][1])
-	local osdh = mp.get_property_number("osd-dimensions/h")
-	bothbigger = false
-	bothsmaller = false
-	size_check()
-	local format = ""
-	local comma = ""
-	if opts.true_color == true then
-	   format = "format=yuv444p"
-	   comma = ","
-	end
 	local hstack
-	local external_vid = "[vid2]"
-	local internal_vid = "[vid1]"
-	if format ~= "" or lavfi_scale[index] then
-	   external_vid = "[vid2_scale]"
-	   internal_vid = "[vid1_scale]"
-	end
-	if opts.manga then
-		hstack = external_vid.." "..internal_vid.." hstack [vo]"
+ 	if opts.manga then
+	   hstack = "[vid2_scale] [vid1_scale] hstack [vo]"
 	else
-		hstack = internal_vid.." "..external_vid.." hstack [vo]"
+	   hstack = "[vid1_scale] [vid2_scale] hstack [vo]"
 	end
-	local pad_col = "0x"..string.sub(mp.get_property("background"), 4)
-	local vid_un = mp.get_property("video-unscaled")
-	local preference
-	if opts.padding == "up" then
-	   preference = maxh
-	elseif opts.padding == "down" then
-	   preference = minh
-	end
-	local cfv1 = comma..format.." [vid1_scale]; "
-	local cfv2 = comma..format.." [vid2_scale]; "
-	if not lavfi_scale[index] then
-	   if format ~= "" then
-	      hstack = "[vid1] "..format.." [vid1_scale]; [vid2] "..format.." [vid2_scale]; "..hstack
-	   end
-	elseif vid_un == "downscale-big" and opts.padding ~= "pad" then
-	   hstack = "[vid1] scale=-1:"..math.min(preference,osdh)..":flags=lanczos"..cfv1.."[vid2] scale=-1:"..math.min(preference,osdh)..":flags=lanczos"..cfv2..hstack
-	elseif vid_un == "yes" and opts.padding ~= "pad" then
-	   hstack = "[vid1] scale=-1:"..preference..":flags=lanczos"..cfv1.."[vid2] scale=-1:"..preference..":flags=lanczos"..cfv2..hstack
-	elseif vid_un == "yes" and opts.padding == "pad" then
-	   hstack = "[vid1] pad=0:"..maxh..":0:-1:color="..pad_col..cfv1.."[vid2] pad=0:"..maxh..":0:-1:color="..pad_col..cfv2..hstack
-	elseif vid_un == "downscale-big" and opts.padding == "pad" and bothsmaller == true then
-	   hstack = "[vid1] pad=0:"..maxh..":0:-1:color="..pad_col..cfv1.."[vid2] pad=0:"..maxh..":0:-1:color="..pad_col..cfv2..hstack
-	elseif vid_un == "downscale-big" and opts.padding == "pad" and bothbigger == true then
-	   hstack = "[vid1] scale=-1:"..osdh..":flags=lanczos"..cfv1.."[vid2] scale=-1:"..osdh..":flags=lanczos"..cfv2..hstack
-	elseif vid_un == "downscale-big" and opts.padding == "pad" then
-	   if filedims[index][1] < filedims[index+1][1] then
-	      hstack = "[vid1] pad=0:"..osdh..":0:-1:color="..pad_col..cfv1.."[vid2] scale=-1:"..osdh..":flags=lanczos"..cfv2..hstack
-	   else
-	      hstack = "[vid1] scale=-1:"..osdh..":flags=lanczos"..cfv1.."[vid2] pad=0:"..osdh..":0:-1:color="..pad_col..cfv2..hstack
-	   end
+	if lavfi_scale[index] then
+	   hstack = "[vid1] scale=-1:"..math.max(filedims[index][1], filedims[index+1][1])..":flags=lanczos, format=yuv444p [vid1_scale]; [vid2] scale=-1:"..math.max(filedims[index][1], filedims[index+1][1])..":flags=lanczos, format=yuv444p [vid2_scale]; "..hstack
 	else
-	   hstack = "[vid1] scale=-1:"..osdh..":flags=lanczos"..cfv1.."[vid2] scale=-1:"..osdh..":flags=lanczos"..cfv2..hstack
+	   hstack = "[vid1] format=yuv444p [vid1_scale]; [vid2] format=yuv444p [vid2_scale]; "..hstack
 	end
 	mp.set_property("lavfi-complex", hstack)
 end
@@ -582,7 +519,6 @@ function set_keys()
 		mp.add_forced_key_binding("Shift+RIGHT", "prev-single-page", prev_single_page)
 		mp.add_forced_key_binding("Ctrl+LEFT", "skip-forward", skip_forward)
 		mp.add_forced_key_binding("Ctrl+RIGHT", "skip-backward", skip_backward)
-		mp.add_forced_key_binding("p", "switch-padding-mode", switch_padding_mode)
 	else
 		mp.add_forced_key_binding("RIGHT", "next-page", next_page)
 		mp.add_forced_key_binding("LEFT", "prev-page", prev_page)
@@ -590,7 +526,6 @@ function set_keys()
 		mp.add_forced_key_binding("Shift+LEFT", "prev-single-page", prev_single_page)
 		mp.add_forced_key_binding("Ctrl+RIGHT", "skip-forward", skip_forward)
 		mp.add_forced_key_binding("Ctrl+LEFT", "skip-backward", skip_backward)
-		mp.add_forced_key_binding("p", "switch-padding-mode", switch_padding_mode)
 	end
 	mp.add_forced_key_binding("UP", "pan-up", pan_up, "repeatable")
 	mp.add_forced_key_binding("DOWN", "pan-down", pan_down, "repeatable")
@@ -611,20 +546,6 @@ function remove_keys()
 	mp.remove_key_binding("first-page")
 	mp.remove_key_binding("last-page")
 	mp.remove_key_binding("jump-page-mode")
-	mp.remove_key_binding("switch-padding-mode")
-end
-
-function switch_padding_mode()
-   if opts.padding == "up" then
-      opts.padding = "pad"
-      mp.osd_message("Pad/Scale mode: PAD")
-   elseif opts.padding == "pad" then
-      opts.padding = "down"
-      mp.osd_message("Pad/Scale mode: DOWNSCALE")
-   elseif opts.padding == "down" then
-      opts.padding = "up"
-      mp.osd_message("Pad/Scale mode: UPSCALE")
-   end
 end
 
 function remove_non_images()
