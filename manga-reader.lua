@@ -34,7 +34,7 @@ local opts = {
 	double = false,
 	manga = true,
 	pan_size = 0.05,
-	similar_height_threshold = 50,
+	similar_height_threshold = 200,
 	skip_size = 10,
 	trigger_zone = 0.05,
 }
