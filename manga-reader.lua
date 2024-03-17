@@ -19,6 +19,7 @@ local ext = {
 local double_page_check = false
 local first_start = true
 local filedims = {}
+local format = {}
 local initiated = false
 local input = ""
 local jump = false
@@ -38,6 +39,7 @@ local opts = {
 	skip_size = 10,
 	trigger_zone = 0.05,
 }
+local lavfi_format = {}
 local lavfi_scale = {}
 local similar_height = {}
 local valid_width = {}
@@ -86,6 +88,14 @@ function check_double_page_dims(index)
 	double_page_check = false
 end
 
+function check_gray_format(name)
+	if name and string.sub(name, 1, 4) == "gray" then
+		return true
+	else
+		return false
+	end
+end
+
 function check_images()
 	local audio = mp.get_property("audio-params")
 	local image = mp.get_property_bool("current-tracks/video/image")
@@ -126,7 +136,7 @@ function create_modes()
 		finish = len - 1
 	end
 	add_tracks(index, finish)
-	store_file_dims(index, finish)
+	store_file_props(index, finish)
 	if opts.double then
 		check_double_page_dims(index)
 		set_lavfi_complex_double()
@@ -143,7 +153,7 @@ function create_modes()
 	end
 end
 
-function store_file_dims(start, finish)
+function store_file_props(start, finish)
 	local len = mp.get_property_number("playlist-count")
 	local needs_dims = false
 	for i=start, finish do
@@ -174,11 +184,20 @@ function store_file_dims(start, finish)
 		dims[0] = width
 		dims[1] = height
 		filedims[i+start] = dims
+		format[i+start] = mp.get_property("track-list/"..tostring(i).."/format-name")
+		-- special case any yuvj formats to avoid ffmpeg deprecation warning spam
+		if format[i+start] and string.sub(format[i+start], 1, 4) == "yuvj" then
+			format[i+start] = string.gsub(format[i+start], "j", "")
+		end
 	end
 	for i=start, finish - 1 do
 		valid_width[i] = check_aspect_ratio(i)
 		if filedims[i][1] ~= filedims[i+1][1] then
 			lavfi_scale[i] = true
+		end
+		if format[i] ~= format[i+1] and check_gray_format(format[i]) or check_gray_format(format[i+1]) then
+			-- if one page is gray, we need to forcibly convert it
+			lavfi_format[i] = check_gray_format(format[i]) and format[i+1] or format[i]
 		end
 		if math.abs(filedims[i][1] - filedims[i+1][1]) < opts.similar_height_threshold then
 			similar_height[i] = true
@@ -215,6 +234,27 @@ function set_lavfi_complex_continuous(arg, finish)
 	local index = mp.get_property_number("playlist-pos")
 	local pages = finish - index
 	local max_width = find_max_width(pages)
+	local has_gray = false
+	local has_color = false
+	local color_format = ""
+	for i=0, pages do
+		if check_gray_format(format[index+i]) then
+			has_gray = true
+		else
+			has_color = true
+			color_format = format[index+i]
+		end
+	end
+	-- if at least one page is color, any gray pages must be converted
+	if has_gray and has_color then
+		for i=0, pages do
+			if check_gray_format(format[index+i]) then
+				local split_format = string.gsub(split[i], "]", "_format]")
+				vstack = vstack..split[i].." format="..color_format.. " "..split_format.."; "
+				split[i] = split_format
+			end
+		end
+	end
 	for i=0, pages do
 		if filedims[index+i][0] ~= max_width then
 			local split_pad = string.gsub(split[i], "]", "_pad]")
@@ -246,18 +286,26 @@ function set_lavfi_complex_double()
 		end
 		return
 	end
-	local hstack
-	local external_vid = "[vid2]"
+	local hstack = ""
+	local vid1 = "[vid1]"
+	local vid2 = "[vid2]"
+	if lavfi_format[index] then
+		if check_gray_format(format[index]) then
+			hstack = vid1.." format="..lavfi_format[index].." [vid1_format]; "
+			vid1 = "[vid1_format]"
+		else
+			hstack = vid2.." format="..lavfi_format[index].." [vid2_format]; "
+			vid2 = "[vid2_format]"
+		end
+	end
 	if lavfi_scale[index] then
-		external_vid = string.sub(external_vid, 0, 5).."_scale]"
+		hstack = hstack..vid2.." scale="..filedims[index][0].."x"..filedims[index][1]..":flags=lanczos [vid2_scale]; "
+		vid2 = "[vid2_scale]"
 	end
 	if opts.manga then
-		hstack = external_vid.." [vid1] hstack [vo]"
+		hstack = hstack..vid2.." "..vid1.. " hstack [vo]"
 	else
-		hstack = "[vid1] "..external_vid.." hstack [vo]"
-	end
-	if lavfi_scale[index] then
-		hstack = "[vid2] scale="..filedims[index][0].."x"..filedims[index][1]..":flags=lanczos [vid2_scale]; "..hstack
+		hstack = hstack..vid1.." "..vid2.. " hstack [vo]"
 	end
 	mp.set_property("lavfi-complex", hstack)
 end
