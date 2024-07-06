@@ -23,10 +23,12 @@ local format = {}
 local initiated = false
 local input = ""
 local jump = false
+local msg_level = ""
 local upwards = false
 local init_values = {
 	force_window = false,
 	image_display_duration = 1,
+	msg_level = "",
 }
 local opts = {
 	auto_start = false,
@@ -39,7 +41,6 @@ local opts = {
 	skip_size = 10,
 	trigger_zone = 0.05,
 }
-local lavfi_format = {}
 local lavfi_scale = {}
 local similar_height = {}
 local valid_width = {}
@@ -185,19 +186,11 @@ function store_file_props(start, finish)
 		dims[1] = height
 		filedims[i+start] = dims
 		format[i+start] = mp.get_property("track-list/"..tostring(i).."/format-name")
-		-- special case any yuvj formats to avoid ffmpeg deprecation warning spam
-		if format[i+start] and string.sub(format[i+start], 1, 4) == "yuvj" then
-			format[i+start] = string.gsub(format[i+start], "j", "")
-		end
 	end
 	for i=start, finish - 1 do
 		valid_width[i] = check_aspect_ratio(i)
 		if filedims[i][1] ~= filedims[i+1][1] then
 			lavfi_scale[i] = true
-		end
-		if format[i] ~= format[i+1] and check_gray_format(format[i]) or check_gray_format(format[i+1]) then
-			-- if one page is gray, we need to forcibly convert it
-			lavfi_format[i] = check_gray_format(format[i]) and format[i+1] or format[i]
 		end
 		if math.abs(filedims[i][1] - filedims[i+1][1]) < opts.similar_height_threshold then
 			similar_height[i] = true
@@ -236,21 +229,21 @@ function set_lavfi_complex_continuous(arg, finish)
 	local max_width = find_max_width(pages)
 	local has_gray = false
 	local has_color = false
-	local color_format = ""
 	for i=0, pages do
-		if check_gray_format(format[index+i]) then
+		if has_gray and has_color then
+			break
+		elseif check_gray_format(format[index+i]) then
 			has_gray = true
 		else
 			has_color = true
-			color_format = format[index+i]
 		end
 	end
-	-- if at least one page is color, any gray pages must be converted
+	-- if there is a mix of color and gray pages, any gray pages must be converted
 	if has_gray and has_color then
 		for i=0, pages do
 			if check_gray_format(format[index+i]) then
 				local split_format = string.gsub(split[i], "]", "_format]")
-				vstack = vstack..split[i].." format="..color_format.. " "..split_format.."; "
+				vstack = vstack..split[i].." format=argb "..split_format.."; "
 				split[i] = split_format
 			end
 		end
@@ -289,14 +282,12 @@ function set_lavfi_complex_double()
 	local hstack = ""
 	local vid1 = "[vid1]"
 	local vid2 = "[vid2]"
-	if lavfi_format[index] then
-		if check_gray_format(format[index]) then
-			hstack = vid1.." format="..lavfi_format[index].." [vid1_format]; "
-			vid1 = "[vid1_format]"
-		else
-			hstack = vid2.." format="..lavfi_format[index].." [vid2_format]; "
-			vid2 = "[vid2_format]"
-		end
+	if check_gray_format(format[index]) then
+		hstack = vid1.." format=argb [vid1_format]; "
+		vid1 = "[vid1_format]"
+	elseif check_gray_format(format[index + 1]) then
+		hstack = vid2.." format=argb [vid2_format]; "
+		vid2 = "[vid2_format]"
 	end
 	if lavfi_scale[index] then
 		hstack = hstack..vid2.." scale="..filedims[index][0].."x"..filedims[index][1]..":flags=lanczos [vid2_scale]; "
@@ -549,16 +540,22 @@ function jump_page_mode()
 end
 
 function set_properties()
-	init_values.force_window = true
 	init_values.force_window = mp.get_property_bool("force-window")
 	init_values.image_display_duration = mp.get_property("image-display-duration")
+	init_values.msg_level = mp.get_property("msg-level")
 	mp.set_property_bool("force-window", true)
 	mp.set_property("image-display-duration", "inf")
+	if init_values.msg_level == "" then
+		mp.set_property("msg-level", "ffmpeg=error")
+	else
+		mp.set_property("msg-level", init_values.msg_level..",ffmpeg=error")
+	end
 end
 
 function restore_properties()
 	mp.set_property_bool("force-window", init_values.force_window)
 	mp.set_property("image-display-duration", init_values.image_display_duration)
+	mp.set_property("msg-level", init_values.msg_level)
 end
 
 function set_keys()
