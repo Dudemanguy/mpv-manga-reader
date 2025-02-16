@@ -65,8 +65,8 @@ function check_aspect_ratio(index)
 	local aspect_ratio
 	local display_width = mp.get_property_number("display-width")
 	local display_height = mp.get_property_number("display-height")
-	if display_width ~= nil and display_height ~= nil then
-		local display_dpi = mp.get_property_number("display-hidpi-scale")
+	local display_dpi = mp.get_property_number("display-hidpi-scale")
+	if display_width ~= nil and display_height ~= nil and display_dpi ~= nil then
 		display_width = display_width / display_dpi
 		display_height = display_height / display_dpi
 		aspect_ratio = display_width / display_height
