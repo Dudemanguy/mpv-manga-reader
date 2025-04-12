@@ -478,15 +478,17 @@ function bs_handler()
 end
 
 function jump_page_go()
-	local dest = tonumber(input) - 1
-	local len = mp.get_property_number("playlist-count")
-	local index = mp.get_property_number("playlist-pos")
-	input = ""
 	mp.osd_message("")
-	if (dest > len - 1) or (dest < 0) then
-		mp.osd_message("Specified page does not exist")
-	else
-		mp.commandv("playlist-play-index", dest)
+	if input ~= "" then
+		local dest = tonumber(input) - 1
+		local len = mp.get_property_number("playlist-count")
+		local index = mp.get_property_number("playlist-pos")
+		input = ""
+		if (dest > len - 1) or (dest < 0) then
+			mp.osd_message("Specified page does not exist")
+		else
+			mp.commandv("playlist-play-index", dest)
+		end
 	end
 	remove_jump_keys()
 	jump = false
