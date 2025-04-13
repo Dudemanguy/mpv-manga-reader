@@ -23,7 +23,6 @@ local format = {}
 local initiated = false
 local input = ""
 local jump = false
-local msg_level = ""
 local upwards = false
 local init_values = {
 	force_window = false,
