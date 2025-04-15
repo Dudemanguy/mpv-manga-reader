@@ -12,6 +12,8 @@ By default, starting mpv-manga-reader is bound to `y`. When turning the reader o
 * toggle-manga-mode: `m`
 * next-page: `LEFT`
 * prev-page: `RIGHT`
+* next-page-mouse: `MBTN_FORWARD`
+* prev-page-mouse: `MBTN_BACK`
 * next-single-page: `Shift+LEFT`
 * prev-single-page: `Shift+RIGHT`
 * skip-forward: `Ctrl+LEFT`

@@ -579,6 +579,8 @@ function set_keys()
 	mp.add_forced_key_binding("DOWN", "pan-down", pan_down, "repeatable")
 	mp.add_forced_key_binding("HOME", "first-page", first_page)
 	mp.add_forced_key_binding("END", "last-page", last_page)
+	mp.add_forced_key_binding("MBTN_FORWARD", "next-page-mouse", next_page)
+	mp.add_forced_key_binding("MBTN_BACK", "prev-page-mouse", prev_page)
 	mp.add_forced_key_binding("/", "jump-page-mode", jump_page_mode)
 end
 
@@ -593,6 +595,8 @@ function remove_keys()
 	mp.remove_key_binding("pan-down")
 	mp.remove_key_binding("first-page")
 	mp.remove_key_binding("last-page")
+	mp.remove_key_binding("next-page-mouse")
+	mp.remove_key_binding("prev-page-mouse")
 	mp.remove_key_binding("jump-page-mode")
 end
 
