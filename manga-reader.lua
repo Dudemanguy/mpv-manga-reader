@@ -421,54 +421,9 @@ function pan_down()
 	mp.commandv("add", "video-pan-y", -opts.pan_size)
 end
 
-function one_handler()
-	input = input.."1"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function two_handler()
-	input = input.."2"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function three_handler()
-	input = input.."3"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function four_handler()
-	input = input.."4"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function five_handler()
-	input = input.."5"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function six_handler()
-	input = input.."6"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function seven_handler()
-	input = input.."7"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function eight_handler()
-	input = input.."8"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function nine_handler()
-	input = input.."9"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function zero_handler()
-	input = input.."0"
-	mp.osd_message("Jump to page "..input, 100000)
+function number_handler(number)
+	input = input .. number
+	mp.osd_message("Jump to page " .. input, 100000)
 end
 
 function bs_handler()
@@ -494,16 +449,9 @@ function jump_page_go()
 end
 
 function remove_jump_keys()
-	mp.remove_key_binding("one-handler")
-	mp.remove_key_binding("two-handler")
-	mp.remove_key_binding("three-handler")
-	mp.remove_key_binding("four-handler")
-	mp.remove_key_binding("five-handler")
-	mp.remove_key_binding("six-handler")
-	mp.remove_key_binding("seven-handler")
-	mp.remove_key_binding("eight-handler")
-	mp.remove_key_binding("nine-handler")
-	mp.remove_key_binding("zero-handler")
+	for c in string.gmatch("0123456789", ".") do
+		mp.remove_key_binding(c .. "-handler")
+	end
 	mp.remove_key_binding("bs-handler")
 	mp.remove_key_binding("jump-page-go")
 	mp.remove_key_binding("jump-page-quit")
@@ -517,16 +465,9 @@ function jump_page_quit()
 end
 
 function set_jump_keys()
-	mp.add_forced_key_binding("1", "one-handler", one_handler)
-	mp.add_forced_key_binding("2", "two-handler", two_handler)
-	mp.add_forced_key_binding("3", "three-handler", three_handler)
-	mp.add_forced_key_binding("4", "four-handler", four_handler)
-	mp.add_forced_key_binding("5", "five-handler", five_handler)
-	mp.add_forced_key_binding("6", "six-handler", six_handler)
-	mp.add_forced_key_binding("7", "seven-handler", seven_handler)
-	mp.add_forced_key_binding("8", "eight-handler", eight_handler)
-	mp.add_forced_key_binding("9", "nine-handler", nine_handler)
-	mp.add_forced_key_binding("0", "zero-handler", zero_handler)
+	for c in string.gmatch("0123456789", ".") do
+		mp.add_forced_key_binding(c, c .. "-handler", function() number_handler(c) end)
+	end
 	mp.add_forced_key_binding("BS", "bs-handler", bs_handler)
 	mp.add_forced_key_binding("ENTER", "jump-page-go", jump_page_go)
 	mp.add_forced_key_binding("ctrl+[", "jump-page-quit", jump_page_quit)
