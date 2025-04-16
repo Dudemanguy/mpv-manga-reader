@@ -1,3 +1,4 @@
+local input = require "mp.input"
 local ext = {
 	".7z",
 	".avif",
@@ -21,8 +22,6 @@ local first_start = true
 local filedims = {}
 local format = {}
 local initiated = false
-local input = ""
-local jump = false
 local upwards = false
 local init_values = {
 	force_window = false,
@@ -421,123 +420,25 @@ function pan_down()
 	mp.commandv("add", "video-pan-y", -opts.pan_size)
 end
 
-function one_handler()
-	input = input.."1"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function two_handler()
-	input = input.."2"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function three_handler()
-	input = input.."3"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function four_handler()
-	input = input.."4"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function five_handler()
-	input = input.."5"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function six_handler()
-	input = input.."6"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function seven_handler()
-	input = input.."7"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function eight_handler()
-	input = input.."8"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function nine_handler()
-	input = input.."9"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function zero_handler()
-	input = input.."0"
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function bs_handler()
-	input = input:sub(1, -2)
-	mp.osd_message("Jump to page "..input, 100000)
-end
-
-function jump_page_go()
-	mp.osd_message("")
-	if input ~= "" then
-		local dest = tonumber(input) - 1
-		local len = mp.get_property_number("playlist-count")
-		local index = mp.get_property_number("playlist-pos")
-		input = ""
-		if (dest > len - 1) or (dest < 0) then
-			mp.osd_message("Specified page does not exist")
-		else
-			mp.commandv("playlist-play-index", dest)
-		end
+function jump_page_go(jump_input)
+	if not string.match(jump_input, "^%d+$") then
+		mp.osd_message("Invalid input!")
+		return
 	end
-	remove_jump_keys()
-	jump = false
-end
-
-function remove_jump_keys()
-	mp.remove_key_binding("one-handler")
-	mp.remove_key_binding("two-handler")
-	mp.remove_key_binding("three-handler")
-	mp.remove_key_binding("four-handler")
-	mp.remove_key_binding("five-handler")
-	mp.remove_key_binding("six-handler")
-	mp.remove_key_binding("seven-handler")
-	mp.remove_key_binding("eight-handler")
-	mp.remove_key_binding("nine-handler")
-	mp.remove_key_binding("zero-handler")
-	mp.remove_key_binding("bs-handler")
-	mp.remove_key_binding("jump-page-go")
-	mp.remove_key_binding("jump-page-quit")
-end
-
-function jump_page_quit()
-	jump = false
-	input = ""
-	remove_jump_keys()
-	mp.osd_message("")
-end
-
-function set_jump_keys()
-	mp.add_forced_key_binding("1", "one-handler", one_handler)
-	mp.add_forced_key_binding("2", "two-handler", two_handler)
-	mp.add_forced_key_binding("3", "three-handler", three_handler)
-	mp.add_forced_key_binding("4", "four-handler", four_handler)
-	mp.add_forced_key_binding("5", "five-handler", five_handler)
-	mp.add_forced_key_binding("6", "six-handler", six_handler)
-	mp.add_forced_key_binding("7", "seven-handler", seven_handler)
-	mp.add_forced_key_binding("8", "eight-handler", eight_handler)
-	mp.add_forced_key_binding("9", "nine-handler", nine_handler)
-	mp.add_forced_key_binding("0", "zero-handler", zero_handler)
-	mp.add_forced_key_binding("BS", "bs-handler", bs_handler)
-	mp.add_forced_key_binding("ENTER", "jump-page-go", jump_page_go)
-	mp.add_forced_key_binding("ctrl+[", "jump-page-quit", jump_page_quit)
-end
-
-function jump_page_mode()
-	if jump == false then
-		jump = true
-		set_jump_keys()
-		mp.osd_message("Jump to page ", 100000)
+	local dest = tonumber(jump_input) - 1
+	local len = mp.get_property_number("playlist-count")
+	if (dest > len - 1) or (dest < 0) then
+		mp.osd_message("Specified page does not exist")
+	else
+		mp.commandv("playlist-play-index", dest)
 	end
+end
+
+function jump_page()
+	input.get({
+		prompt = "Jump to page:",
+		submit = jump_page_go,
+	})
 end
 
 function set_properties()
@@ -581,7 +482,7 @@ function set_keys()
 	mp.add_forced_key_binding("END", "last-page", last_page)
 	mp.add_forced_key_binding("MBTN_FORWARD", "next-page-mouse", next_page)
 	mp.add_forced_key_binding("MBTN_BACK", "prev-page-mouse", prev_page)
-	mp.add_forced_key_binding("/", "jump-page-mode", jump_page_mode)
+	mp.add_forced_key_binding("/", "jump-page", jump_page)
 end
 
 function remove_keys()
@@ -597,7 +498,7 @@ function remove_keys()
 	mp.remove_key_binding("last-page")
 	mp.remove_key_binding("next-page-mouse")
 	mp.remove_key_binding("prev-page-mouse")
-	mp.remove_key_binding("jump-page-mode")
+	mp.remove_key_binding("jump-page")
 end
 
 function remove_non_images()
