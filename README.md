@@ -22,14 +22,12 @@ By default, starting mpv-manga-reader is bound to `y`. When turning the reader o
 * last-page: `END`
 * pan-up: `UP`
 * pan-down: `DOWN`
-* jump-page-mode: `/`
-* jump-page-go: `ENTER`
-* jump-page-quit: `ctrl+[`
+* jump-page: `/`
 
 Keybindings can all be changed in input.conf in the usual way (i.e. `key script-message function-name`). If manga mode is false, then the direction keys of the `next-page` and `prev-page` functions are reversed (i.e. `next-page` becomes `RIGHT` and so on).
 
 ## jump-page
-The `jump-page` functions work a little bit differently than the rest of the reader. Pressing `jump-page-mode` will do some key rebinds and then prompt the user with a message asking which page to move to. Simply press any combination of numbers followed by `jump-page-go` to move to the desired page. If the entered number is out of range, a message will be displayed. Either way, `jump-page-mode` will be ended. You can use `jump-page-quit` to quit `jump-page-mode` at any time.
+The `jump-page` function will open the console and prompt the user to enter a page number to move to. Simply press any combination of numbers followed by `ENTER` to move to the desired page. If the entered number is out of range, or the input is invalid (not all numbers), a message will be displayed. Either way, the console will be closed. You can press `ESC` to close the console at any time.
 
 ## Configuration
 `manga-reader.lua` reads its configuration from `manga-reader.conf` in your `script-opts` directory. The format for the file is `foo=value`. Here are the available options and their defaults.
