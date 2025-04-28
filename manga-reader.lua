@@ -674,8 +674,13 @@ function toggle_double_page()
 		mp.set_property("lavfi-complex", "")
 		mp.set_property("force-media-title", "")
 	else
+		if opts.continuous then
+			mp.unobserve_property(check_y_pos)
+			mp.set_property_number("video-align-y", 0)
+			mp.set_property_number("video-pan-y", 0)
+			opts.continuous = false
+		end
 		mp.osd_message("Double Page Mode On")
-		opts.continuous = false
 		opts.double = true
 	end
 	local index = mp.get_property_number("playlist-pos")
