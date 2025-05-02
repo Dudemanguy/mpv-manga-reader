@@ -1,4 +1,5 @@
 local input = require "mp.input"
+local utils = require "mp.utils"
 local ext = {
 	".7z",
 	".avif",
@@ -23,6 +24,8 @@ local filedims = {}
 local format = {}
 local initiated = false
 local upwards = false
+local bookmark_entries = {}
+local last_selection = {}
 local init_values = {
 	force_window = false,
 	image_display_duration = 1,
@@ -30,6 +33,7 @@ local init_values = {
 }
 local opts = {
 	auto_start = false,
+	bookmark_path = "~~home/bookmarks.jsonl",
 	continuous = false,
 	continuous_size = 8,
 	double = false,
@@ -483,6 +487,8 @@ function set_keys()
 	mp.add_forced_key_binding("MBTN_FORWARD", "next-page-mouse", next_page)
 	mp.add_forced_key_binding("MBTN_BACK", "prev-page-mouse", prev_page)
 	mp.add_forced_key_binding("/", "jump-page", jump_page)
+	mp.add_forced_key_binding("Ctrl+n", "create-bookmark", create_bookmark)
+	mp.add_forced_key_binding("Ctrl+u", "update-bookmark", update_bookmark)
 end
 
 function remove_keys()
@@ -499,6 +505,8 @@ function remove_keys()
 	mp.remove_key_binding("next-page-mouse")
 	mp.remove_key_binding("prev-page-mouse")
 	mp.remove_key_binding("jump-page")
+	mp.remove_key_binding("create-bookmark")
+	mp.remove_key_binding("update-bookmark")
 end
 
 function remove_non_images()
@@ -700,6 +708,150 @@ function toggle_manga_mode()
 	mp.commandv("playlist-play-index", index)
 end
 
+function write_bookmarks()
+	local write_str = ""
+	for _, v in ipairs(bookmark_entries) do
+		write_str = write_str .. utils.format_json(v) .. "\n"
+	end
+	local bookmark_file = io.open(
+		mp.command_native({ "expand-path", opts.bookmark_path }), "w")
+	bookmark_file:write(write_str)
+	bookmark_file:close()
+end
+
+function parse_bookmarks()
+	bookmark_entries = {}
+	local bookmark_file = io.open(
+		mp.command_native({ "expand-path", opts.bookmark_path }), "r")
+	if bookmark_file == nil then
+		return
+	end
+	for line in bookmark_file:lines() do
+		local line_table = utils.parse_json(line)
+		table.insert(bookmark_entries, line_table)
+	end
+	bookmark_file:close()
+end
+
+function select_bookmark(prompt, submit_function)
+	parse_bookmarks()
+	if #bookmark_entries == 0 then
+		mp.osd_message("No bookmarks!")
+		return
+	end
+	local selection_items = {}
+	local longest_page_value = 1
+	for _, v in ipairs(bookmark_entries) do
+		if #tostring(v.page) > longest_page_value then
+			longest_page_value = #tostring(v.page)
+		end
+	end
+	for _, v in ipairs(bookmark_entries) do
+		local pad = longest_page_value - #tostring(v.page) + 1
+		table.insert(selection_items, tostring(v.page) .. string.rep(" ", pad) .. v.name)
+	end
+	input.select({
+		items = selection_items,
+		prompt = prompt,
+		submit = submit_function,
+	})
+end
+
+function open_bookmark(index)
+	bookmark_event = function()
+		set_bookmark(index)
+	end
+	mp.register_event("file-loaded", bookmark_event)
+	mp.commandv("loadfile", bookmark_entries[index]["path"])
+end
+
+function set_bookmark(index)
+	mp.unregister_event(bookmark_event)
+	last_selection = bookmark_entries[index]
+	if not initiated then
+		toggle_reader()
+	end
+	mp.commandv("playlist-play-index", bookmark_entries[index]["page"] - 1)
+	if bookmark_entries[index]["double"] ~= opts.double then
+		toggle_double_page()
+	end
+	if bookmark_entries[index]["continuous"] ~= opts.continuous then
+		toggle_continuous_mode()
+	end
+	if bookmark_entries[index]["manga"] ~= opts.manga then
+		toggle_manga_mode()
+	end
+end
+
+function delete_bookmark(index)
+	table.remove(bookmark_entries, index)
+	write_bookmarks()
+end
+
+function get_path()
+	local path = mp.get_property("path")
+	local cwd = utils.getcwd()
+	local absolute_path
+	local name
+	-- mpv reports archive paths as
+	-- archive://<path to archive>|<path within archive>
+	if string.match(path, "^archive://") then
+		absolute_path = utils.join_path(cwd, string.match(path, "^archive://(.*)|"))
+		_, name = utils.split_path(absolute_path)
+		name = string.gsub(name,  "." .. string.gsub(name, ".*%.", ""), "")
+	else
+		absolute_path = utils.split_path(utils.join_path(cwd, path))
+		_, name = utils.split_path(string.sub(absolute_path, 1, -2))
+	end
+	return absolute_path, name
+end
+
+function insert_bookmark()
+	local page = mp.get_property_number("playlist-pos") + 1
+	local path, name = get_path()
+	table.insert(bookmark_entries, 1, {
+		name = name,
+		path = path,
+		page = page,
+		double = opts.double,
+		continuous = opts.continuous,
+		manga = opts.manga,
+	})
+	last_selection = bookmark_entries[1]
+end
+
+function create_bookmark()
+	parse_bookmarks()
+	insert_bookmark()
+	write_bookmarks()
+	mp.osd_message("Created bookmark!")
+end
+
+function update_bookmark()
+	-- we can't directly store the index of the last_selection because it may
+	-- become misaligned due to deletions or the entry itself getting deleted
+	parse_bookmarks()
+	local last_selection_index
+	for i, v in ipairs(bookmark_entries) do
+		if last_selection.page == v.page and last_selection.path == v.path then
+			last_selection_index = i
+			break
+		end
+	end
+	if last_selection_index then
+		table.remove(bookmark_entries, last_selection_index)
+		insert_bookmark()
+		write_bookmarks()
+		mp.osd_message("Updated bookmark!")
+	else
+		mp.osd_message("No bookmark to update!")
+	end
+end
+
 mp.register_event("file-loaded", init)
 mp.add_key_binding("y", "toggle-reader", toggle_reader)
+mp.add_key_binding("Ctrl+b", "open-bookmark", function()
+	select_bookmark("Open bookmark:", open_bookmark) end)
+mp.add_key_binding("Ctrl+d", "delete-bookmark", function()
+	select_bookmark("DELETE bookmark:", delete_bookmark) end)
 require "mp.options".read_options(opts, "manga-reader")
