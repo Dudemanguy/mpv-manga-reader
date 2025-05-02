@@ -23,11 +23,20 @@ By default, starting mpv-manga-reader is bound to `y`. When turning the reader o
 * pan-up: `UP`
 * pan-down: `DOWN`
 * jump-page: `/`
+* open-bookmark: `Ctrl+b`
+* delete-bookmark: `Ctrl+d`
+* create-bookmark: `Ctrl+n`
+* update-bookmark: `Ctrl+u`
 
 Keybindings can all be changed in input.conf in the usual way (i.e. `key script-message function-name`). If manga mode is false, then the direction keys of the `next-page` and `prev-page` functions are reversed (i.e. `next-page` becomes `RIGHT` and so on).
 
 ## jump-page
 The `jump-page` function will open the console and prompt the user to enter a page number to move to. Simply press any combination of numbers followed by `ENTER` to move to the desired page. If the entered number is out of range, or the input is invalid (not all numbers), a message will be displayed. Either way, the console will be closed. You can press `ESC` to close the console at any time.
+
+## Bookmarks
+When the reader is active you can use the `create-bookmark` function to create a bookmark at your current position. Besides the page number and path to the directory/archive you're currently viewing, bookmarks also save the current double, continuous, and manga mode settings. The `update-bookmark` function effectively deletes the bookmark that you last created or navigated to and creates a new bookmark at the current position. The `open-bookmark` function will open mpv's selection menu allowing you to choose a bookmark to navigate to. Similarly, the `delete-bookmark` function allows you to choose a bookmark to delete. These two functions are available when the reader is not active allowing you to navigate to, or delete bookmarks at any time.
+
+Note: bookmark functionality assumes that your playlist consist of a single archive or directory, other playlist configurations may not work.
 
 ## Configuration
 `manga-reader.lua` reads its configuration from `manga-reader.conf` in your `script-opts` directory. The format for the file is `foo=value`. Here are the available options and their defaults.
@@ -58,6 +67,9 @@ Defaults to `10`. This is the interval used by the `skip-forward` and `skip-back
 
 ``trigger_zone``\
 Defaults to `0.05`. When in continuous mode, the manga reader attempts to be smart and change pages for you once a pan value goes past a certain amount (determined by the page dimensions and the vertical alignment). The `trigger_zone` is an additional value added to this parameter. Basically, increasing the value will make it take longer for panning a page to change pages whereas decreasing does the opposite.
+
+``bookmark_path``\
+Defaults to `~~home/bookmarks.jsonl`. This is the path to the file that stores bookmark data. The default path is the same directory that contains your mpv.conf, input.conf, etc.
 
 ## License
 GPLv3
