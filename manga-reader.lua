@@ -1,6 +1,6 @@
 local input = require "mp.input"
 local utils = require "mp.utils"
-local ext = {
+local extensions = {
 	".7z",
 	".avif",
 	".bmp",
@@ -102,8 +102,8 @@ end
 function check_images()
 	local audio = mp.get_property("audio-params")
 	local image = mp.get_property_bool("current-tracks/video/image")
-	local length = mp.get_property_number("playlist-count")
-	if audio == nil and image and length > 1 then
+	local len = mp.get_property_number("playlist-count")
+	if audio == nil and image and len > 1 then
 		return true
 	else
 		return false
@@ -157,7 +157,6 @@ function create_modes()
 end
 
 function store_file_props(start, finish)
-	local len = mp.get_property_number("playlist-count")
 	local needs_dims = false
 	for i=start, finish do
 		if valid_width[i] == nil then
@@ -209,7 +208,6 @@ end
 function check_lavfi_complex(event)
 	if event.file_error then
 		mp.set_property("lavfi-complex", "")
-		local index = mp.get_property_number("playlist-pos")
 		if opts.continuous then
 			opts.continous = false
 			toggle_continuous_mode()
@@ -262,7 +260,6 @@ function set_lavfi_complex_continuous(arg, finish)
 	end
 	vstack = vstack.."vstack=inputs="..tostring(pages + 1).." [vo]"
 	mp.set_property("lavfi-complex", vstack)
-	local index = mp.get_property_number("playlist-pos")
 	mp.set_property_number("video-pan-y", 0)
 	if upwards then
 		mp.set_property_number("video-align-y", 1)
@@ -337,7 +334,6 @@ function next_page()
 end
 
 function prev_page()
-	local len = mp.get_property_number("playlist-count")
 	local index = mp.get_property_number("playlist-pos")
 	local new_index
 	if opts.double then
@@ -510,14 +506,13 @@ function remove_keys()
 end
 
 function remove_non_images()
-	local length = mp.get_property_number("playlist-count")
 	local i = 0
 	local name = mp.get_property("playlist/"..tostring(i).."/filename")
 	while name ~= nil do
 		local name_ext = string.sub(name, -5)
 		local match = false
-		for j = 1, #ext do
-			if string.match(name_ext, ext[j]) then
+		for j = 1, #extensions do
+			if string.match(name_ext, extensions[j]) then
 				match = true
 				break
 			end
@@ -536,7 +531,6 @@ end
 
 function find_max_width(pages)
 	local index = mp.get_property_number("playlist-pos")
-	local len = mp.get_property_number("playlist-count")
 	local max_width = 0
 	for i=index, pages do
 		if tonumber(filedims[i][0]) > tonumber(max_width) then
