@@ -509,7 +509,7 @@ function remove_non_images()
 	local i = 0
 	local name = mp.get_property("playlist/"..tostring(i).."/filename")
 	while name ~= nil do
-		local name_ext = string.sub(name, -5)
+		local name_ext = name:sub(-5):lower()
 		local match = false
 		for j = 1, #extensions do
 			if string.match(name_ext, extensions[j]) then
