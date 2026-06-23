@@ -205,7 +205,7 @@ function check_lavfi_complex(event)
 	if event.file_error then
 		mp.set_property("lavfi-complex", "")
 		if opts.continuous then
-			opts.continous = false
+			opts.continuous = false
 			toggle_continuous_mode()
 			mp.osd_message("Error when trying to set continuous mode! Disabling!")
 		end
