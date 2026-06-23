@@ -201,10 +201,6 @@ function store_file_props(start, finish)
 	end
 end
 
-function log2(num)
-	return math.log(num)/math.log(2)
-end
-
 function check_lavfi_complex(event)
 	if event.file_error then
 		mp.set_property("lavfi-complex", "")
