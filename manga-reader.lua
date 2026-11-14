@@ -307,12 +307,7 @@ function next_page()
 		else
 			new_index = index + 1
 		end
-		if new_index > len - 2  and double_displayed then
-			new_index = len - 2
-		elseif new_index > len - 2 then
-			new_index = len - 1
-		end
-		if new_index == index then
+		if new_index >= len then
 			return
 		end
 	elseif opts.continuous then
